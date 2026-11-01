@@ -1,0 +1,26 @@
+# Render Blueprint: New > Blueprint > pick this repo.
+# Creates the web service + a Postgres database and wires DATABASE_URL automatically.
+services:
+  - type: web
+    name: taxi-mum-dad
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "app:create_app()" --workers 1 --threads 4 --bind 0.0.0.0:$PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TZ_NAME
+        value: Europe/Dublin
+      - key: DATABASE_URL
+        fromDatabase:
+          name: taxi-mum-dad-db
+          property: connectionString
+
+databases:
+  - name: taxi-mum-dad-db
+    plan: free
+    databaseName: taxi

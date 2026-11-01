@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>🚕 Receipt for {{ kid.name }} - Taxi of Mum &amp; Dad</title>
+<meta property="og:title" content="🚕 Taxi receipt: {{ pax.fare }} {{ fam.currency }}">
+<meta property="og:description" content="{{ kid.name }}, your ride with {{ driver.name }} is on the tab. Running total: {{ balance }}.">
+<link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+<style>
+  :root { --paper:#fffdf6; --ink:#1a1a1a; --taxi:#ffc20e; --muted:#6b6b6b; --bg:#2b2b2b; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:var(--bg) repeating-linear-gradient(45deg,#2b2b2b 0 22px,#262626 22px 44px);
+         font-family:"Courier New",ui-monospace,monospace; color:var(--ink); padding:24px 16px 48px; }
+  .receipt { max-width:380px; margin:0 auto; background:var(--paper); padding:22px 20px 26px; position:relative;
+             box-shadow:0 12px 30px rgba(0,0,0,.45); animation:print .9s ease-out both; }
+  .receipt::after { content:""; position:absolute; left:0; right:0; bottom:-12px; height:12px;
+             background:linear-gradient(-45deg,transparent 8px,var(--paper) 0) 0 0/16px 12px repeat-x,
+                        linear-gradient(45deg,transparent 8px,var(--paper) 0) 0 0/16px 12px repeat-x; }
+  @keyframes print { from { transform:translateY(-40px); clip-path:inset(0 0 100% 0); } to { transform:none; clip-path:inset(0 0 -20px 0); } }
+  .center { text-align:center; }
+  .sign { display:inline-block; background:var(--taxi); border:3px solid var(--ink); border-radius:8px; padding:4px 14px;
+          font-family:Impact,"Arial Black",sans-serif; letter-spacing:3px; font-size:22px; }
+  .checker { height:10px; margin:10px 0; background:repeating-linear-gradient(90deg,var(--ink) 0 10px,var(--taxi) 10px 20px); }
+  h1 { font-size:18px; margin:8px 0 2px; }
+  .small { font-size:12px; color:var(--muted); }
+  hr { border:0; border-top:2px dashed #bbb; margin:14px 0; }
+  .row { display:flex; justify-content:space-between; gap:12px; font-size:14px; margin:4px 0; }
+  .total { font-size:22px; font-weight:bold; }
+  .total-row { border-top:2px solid var(--ink); border-bottom:2px solid var(--ink); padding:6px 0; margin-top:8px; }
+  .stamp { display:inline-block; transform:rotate(-8deg); border:3px solid #c0392b; color:#c0392b; padding:4px 10px;
+           font-weight:bold; letter-spacing:2px; margin:10px 0; border-radius:6px; }
+  .tabs { background:#fff4cc; border:2px solid var(--ink); border-radius:8px; padding:10px; text-align:center; margin:10px 0; }
+  .tabs b { font-size:26px; display:block; }
+  ul { list-style:none; padding:0; margin:6px 0; }
+  li { display:flex; justify-content:space-between; font-size:14px; padding:3px 0; border-bottom:1px dotted #ccc; }
+  form { margin-top:8px; }
+  .stars { display:flex; flex-direction:row-reverse; justify-content:center; gap:2px; }
+  .stars input { position:absolute; opacity:0; width:1px; height:1px; }
+  .stars label { font-size:34px; cursor:pointer; filter:grayscale(1); opacity:.35; transition:transform .1s; }
+  .stars input:checked ~ label, .stars label:hover, .stars label:hover ~ label { filter:none; opacity:1; }
+  .stars label:active { transform:scale(1.3); }
+  .stars input:focus-visible + label { outline:2px solid var(--ink); }
+  .q { text-align:center; font-weight:bold; margin:10px 0 2px; }
+  textarea { width:100%; font:inherit; border:2px solid var(--ink); border-radius:6px; padding:8px; margin-top:8px; }
+  button { width:100%; margin-top:10px; padding:14px; font:bold 16px "Courier New",monospace; background:var(--taxi);
+           border:3px solid var(--ink); border-radius:10px; cursor:pointer; }
+  .thanks { background:#e6ffe6; border:2px solid #2e7d32; border-radius:8px; padding:10px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="receipt">
+  <div class="center">
+    <div class="sign">TAXI</div>
+    <h1>{{ fam.name }}</h1>
+    <div class="small">Taxi of Mum &amp; Dad · Licence No. 1 · Est. the day you were born</div>
+  </div>
+  <div class="checker"></div>
+
+  <div class="row"><span>Receipt</span><span>#{{ '%05d' % pax.id }}</span></div>
+  <div class="row"><span>Date</span><span>{{ when.strftime('%a %d %b %Y') }}</span></div>
+  <div class="row"><span>Time</span><span>{{ when.strftime('%H:%M') }}</span></div>
+  <div class="row"><span>Driver</span><span>{{ driver.emoji }} {{ driver.name }}</span></div>
+  <div class="row"><span>Passenger</span><span>{{ kid.emoji }} {{ kid.name }}</span></div>
+  {% if trip.note %}<div class="row"><span>Trip</span><span>{{ trip.note }}</span></div>{% endif %}
+  <hr>
+  <div class="row"><span>Distance</span><span>{{ '%.1f' % trip.distance_km }} km</span></div>
+  <div class="row"><span>Time on meter</span><span>{{ trip.minutes|round|int }} min</span></div>
+  <hr>
+  {% set b = trip.breakdown or {} %}
+  <div class="row"><span>Flag fall</span><span>{{ '%.1f' % b.get('flag_fall', 0) }}</span></div>
+  <div class="row"><span>Distance charge</span><span>{{ '%.1f' % b.get('distance', 0) }}</span></div>
+  <div class="row"><span>Time charge</span><span>{{ '%.1f' % b.get('time', 0) }}</span></div>
+  {% for e in b.get('extras', []) %}
+  <div class="row"><span>{{ e.label }}</span><span>{{ e.credits }}</span></div>
+  {% endfor %}
+  <div class="row"><span><b>Trip total</b></span><span><b>{{ trip.total_fare }}</b></span></div>
+  {% if b.get('split', 1) > 1 %}
+  <div class="row"><span>Split {{ b.split }} ways 🤝</span><span>÷{{ b.split }}</span></div>
+  {% endif %}
+  {% if pax.discount %}
+  <div class="row"><span>⭐ 5-star passenger discount</span><span>-{{ pax.discount }}</span></div>
+  {% endif %}
+  <div class="row total-row"><span class="total">YOU OWE</span><span class="total">{{ pax.fare }}</span></div>
+  <div class="small center">{{ fam.currency }}</div>
+
+  {% if pax.passenger_stars %}
+  <div class="center">
+    <div class="stamp">PASSENGER {{ '★' * pax.passenger_stars }}{{ '☆' * (5 - pax.passenger_stars) }}</div>
+    {% if pax.passenger_tags %}<div class="small">{{ pax.passenger_tags|join(' · ') }}</div>{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="tabs">
+    Your running tab
+    <b>{{ balance }} {{ fam.currency }}</b>
+    {% if balance <= 0 %}All square - legend! 🎉{% else %}Pay it off with any of these 👇{% endif %}
+  </div>
+
+  {% if balance > 0 and tasks %}
+  <ul>
+    {% for t in tasks %}<li><span>{{ t.emoji }} {{ t.name }}</span><span>-{{ t.credits }}</span></li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  <hr>
+  {% if thanks or pax.rated_at %}
+    <div class="thanks">
+      {% if thanks %}Thanks! Your review has been sent to HQ 📨{% else %}You rated this trip{% endif %}<br>
+      Driver {{ '★' * (pax.driver_stars or 0) }} · Journey {{ '★' * (pax.journey_stars or 0) }}
+      {% if pax.kid_comment %}<div class="small">“{{ pax.kid_comment }}”</div>{% endif %}
+    </div>
+  {% else %}
+    <form method="post" action="{{ url_for('rate_driver', token=pax.token) }}">
+      <div class="q">Rate your driver</div>
+      <div class="stars">
+        {% for i in [5,4,3,2,1] %}<input type="radio" id="d{{i}}" name="driver_stars" value="{{i}}" {% if i==5 %}required{% endif %}><label for="d{{i}}" title="{{i}} stars">⭐</label>{% endfor %}
+      </div>
+      <div class="q">Rate the journey</div>
+      <div class="stars">
+        {% for i in [5,4,3,2,1] %}<input type="radio" id="j{{i}}" name="journey_stars" value="{{i}}" {% if i==5 %}required{% endif %}><label for="j{{i}}" title="{{i}} stars">⭐</label>{% endfor %}
+      </div>
+      <textarea name="comment" maxlength="200" rows="2" placeholder="Any complaints for the management? (music, driving, dad jokes…)"></textarea>
+      <button type="submit">Send review 📨</button>
+    </form>
+  {% endif %}
+
+  <div class="checker"></div>
+  <div class="small center">No refunds. No tipping required (hugs accepted).<br>Thank you for riding with {{ fam.name }}!</div>
+</div>
+</body>
+</html>

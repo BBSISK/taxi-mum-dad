@@ -1,0 +1,16 @@
+{
+  "name": "Taxi of Mum & Dad",
+  "short_name": "Mum&Dad Taxi",
+  "description": "Run the meter on the family taxi, send cheeky receipts, and let the kids pay it off with jobs.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff8e6",
+  "theme_color": "#ffc20e",
+  "icons": [
+    {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "/static/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
