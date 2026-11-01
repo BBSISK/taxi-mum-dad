@@ -77,6 +77,10 @@
   .spread .share { grid-column:1 / -1; display:block; text-align:center; background:#25d366; color:var(--ink); font-weight:800; text-decoration:none;
             border:3px solid var(--ink); border-radius:10px; padding:12px; }
   .spread .get { grid-column:1 / -1; text-align:center; color:var(--ink); }
+  .morejobs summary { list-style:none; cursor:pointer; text-align:center; font-weight:bold; padding:10px; margin-top:6px;
+            border:2px dashed var(--ink); border-radius:8px; }
+  .morejobs summary::-webkit-details-marker { display:none; }
+  .morejobs[open] summary { margin-bottom:6px; }
 </style>
 </head>
 <body>
@@ -122,6 +126,31 @@
   </div>
   {% endif %}
 
+  <hr>
+  <div id="rate">
+  {% if thanks or pax.rated_at %}
+    <div class="thanks">
+      {% if thanks %}Thanks! Your review has been sent to HQ 📨{% else %}You rated this trip{% endif %}<br>
+      Driver {{ '★' * (pax.driver_stars or 0) }} · Journey {{ '★' * (pax.journey_stars or 0) }}
+      {% if pax.kid_comment %}<div class="small">“{{ pax.kid_comment }}”</div>{% endif %}
+    </div>
+  {% else %}
+    <form method="post" action="{{ url_for('rate_driver', token=pax.token) }}">
+      <div class="q">Rate your driver</div>
+      <div class="stars">
+        {% for i in [5,4,3,2,1] %}<input type="radio" id="d{{i}}" name="driver_stars" value="{{i}}" {% if i==5 %}required{% endif %}><label for="d{{i}}" title="{{i}} stars">⭐</label>{% endfor %}
+      </div>
+      <div class="q">Rate the journey</div>
+      <div class="stars">
+        {% for i in [5,4,3,2,1] %}<input type="radio" id="j{{i}}" name="journey_stars" value="{{i}}" {% if i==5 %}required{% endif %}><label for="j{{i}}" title="{{i}} stars">⭐</label>{% endfor %}
+      </div>
+      <textarea name="comment" maxlength="200" rows="2" placeholder="Any complaints for the management? (music, driving, dad jokes…)"></textarea>
+      <button type="submit">Send review 📨</button>
+    </form>
+  {% endif %}
+  </div>
+  <hr>
+
   <div class="tabs">
     Your running tab
     <b>{{ balance }} {{ fam.currency }}</b>
@@ -151,12 +180,19 @@
   <form id="promise" method="post" action="{{ url_for('make_promise', token=pax.token) }}" novalidate>
     <div class="q">Sign up to pay it off ✍️</div>
     <div class="small center">1. Pick a job &nbsp; 2. Say when &nbsp; 3. Sign</div>
+    {% macro jobrow(t) %}
+      {% set taken = t.id in promised_task_ids %}
+      <input type="radio" name="task_id" value="{{ t.id }}" id="t{{ t.id }}" {% if taken %}disabled{% endif %}>
+      <label for="t{{ t.id }}" class="jobrow {% if taken %}taken{% endif %}"><span>{{ t.emoji }} {{ t.name }}</span><span>{% if taken %}✓ promised{% else %}-{{ t.credits }}{% endif %}</span></label>
+    {% endmacro %}
     <div class="jobs">
-      {% for t in tasks %}
-        {% set taken = t.id in promised_task_ids %}
-        <input type="radio" name="task_id" value="{{ t.id }}" id="t{{ t.id }}" {% if taken %}disabled{% endif %}>
-        <label for="t{{ t.id }}" class="jobrow {% if taken %}taken{% endif %}"><span>{{ t.emoji }} {{ t.name }}</span><span>{% if taken %}✓ promised{% else %}-{{ t.credits }}{% endif %}</span></label>
-      {% endfor %}
+      {% for t in tasks[:8] %}{{ jobrow(t) }}{% endfor %}
+      {% if tasks|length > 8 %}
+      <details class="morejobs">
+        <summary>Show all jobs ({{ tasks|length - 8 }} more, bigger ones too) ▾</summary>
+        {% for t in tasks[8:] %}{{ jobrow(t) }}{% endfor %}
+      </details>
+      {% endif %}
     </div>
     <div class="when">
       {% for key, label in due_choices.items() %}
@@ -176,28 +212,6 @@
   </form>
   {% elif balance > 0 and tasks %}
   <div class="small center">That's plenty of promises for now - go do some! 😅</div>
-  {% endif %}
-
-  <hr>
-  {% if thanks or pax.rated_at %}
-    <div class="thanks">
-      {% if thanks %}Thanks! Your review has been sent to HQ 📨{% else %}You rated this trip{% endif %}<br>
-      Driver {{ '★' * (pax.driver_stars or 0) }} · Journey {{ '★' * (pax.journey_stars or 0) }}
-      {% if pax.kid_comment %}<div class="small">“{{ pax.kid_comment }}”</div>{% endif %}
-    </div>
-  {% else %}
-    <form method="post" action="{{ url_for('rate_driver', token=pax.token) }}">
-      <div class="q">Rate your driver</div>
-      <div class="stars">
-        {% for i in [5,4,3,2,1] %}<input type="radio" id="d{{i}}" name="driver_stars" value="{{i}}" {% if i==5 %}required{% endif %}><label for="d{{i}}" title="{{i}} stars">⭐</label>{% endfor %}
-      </div>
-      <div class="q">Rate the journey</div>
-      <div class="stars">
-        {% for i in [5,4,3,2,1] %}<input type="radio" id="j{{i}}" name="journey_stars" value="{{i}}" {% if i==5 %}required{% endif %}><label for="j{{i}}" title="{{i}} stars">⭐</label>{% endfor %}
-      </div>
-      <textarea name="comment" maxlength="200" rows="2" placeholder="Any complaints for the management? (music, driving, dad jokes…)"></textarea>
-      <button type="submit">Send review 📨</button>
-    </form>
   {% endif %}
 
   <div class="checker"></div>
