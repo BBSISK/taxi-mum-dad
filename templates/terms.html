@@ -1,0 +1,39 @@
+{% extends "_legal_base.html" %}
+{% block title %}Terms{% endblock %}
+{% block body %}
+<h1>Terms of use</h1>
+<p class="meta">Last updated {{ policy_date }}</p>
+<p>Short version: it's a free family game. Drive safely, be kind, and nobody owes anybody real money.</p>
+
+<h2>1. The service</h2>
+<p>Taxi of Mum &amp; Dad ("the app") is provided free of charge by Barry Sisk, Limerick, Ireland, for personal, non-commercial family use by adults (18+).
+Children take part only through links their parent or guardian chooses to share with them.</p>
+
+<h2>2. Safety first 🚦</h2>
+<p><b>Never use the app while driving.</b> Set the meter before you set off and stop it once you've parked, or let a passenger tap the buttons.
+Always follow the rules of the road. We are not responsible for any distraction, accident or loss connected with using a phone in a vehicle.</p>
+
+<h2>3. It's a game</h2>
+<p>Fares, "Taxi Tokens" and credits are pretend. They have no cash value, can't be exchanged for money, and aren't a payment service.
+Distances and times are estimates from your phone and may be wrong. Please don't use them for anything official (mileage claims, tax and so on).</p>
+
+<h2>4. Your family's account</h2>
+<ul>
+  <li>You're responsible for the information you enter, including about your children. Only add children you are the parent or guardian of, or have their parent's permission for.</li>
+  <li>Keep your invite code and receipt links to people you trust. Anyone with an invite code can join your family as a driver, and you can make a new code in Settings at any time.</li>
+  <li>Be kind: no offensive names, comments or jobs.</li>
+</ul>
+
+<h2>5. Your data</h2>
+<p>How we handle personal data is explained in our <a href="{{ url_for('privacy') }}">privacy notice</a>. You can download or delete your family's data at any time in Settings.</p>
+
+<h2>6. Changes and availability</h2>
+<p>The app is provided "as is" and may change, pause or stop. We'll give notice in the app before any significant change, and before introducing any paid features. Nothing will be charged without your clear agreement.</p>
+
+<h2>7. Liability</h2>
+<p>To the extent the law allows, we aren't liable for indirect losses or for losses caused by using the app against these terms. Nothing here limits rights you have as a consumer under Irish or EU law.</p>
+
+<h2>8. Law</h2>
+<p>These terms are governed by the laws of Ireland.</p>
+<p>Questions: {% if contact_email %}<a href="mailto:{{ contact_email }}">{{ contact_email }}</a>{% else %}<i>[contact email to be added]</i>{% endif %}</p>
+{% endblock %}

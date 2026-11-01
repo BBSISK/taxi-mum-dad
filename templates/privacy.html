@@ -1,0 +1,77 @@
+{% extends "_legal_base.html" %}
+{% block title %}Privacy notice{% endblock %}
+{% block body %}
+<h1>Privacy notice</h1>
+<p class="meta">Last updated {{ policy_date }}</p>
+
+<p>Taxi of Mum &amp; Dad is a fun family app. Parents log lifts, send cheeky receipts, and kids pay them off with jobs.
+We built it to collect as little as possible. This page explains what we keep, why, and how you control it.</p>
+
+<section class="kids" id="kids">
+  <h2 style="margin-top:4px">👋 For kids: the short version</h2>
+  <ul>
+    <li>We only know your <b>first name</b>, the trips Mum or Dad logged, and anything you <b>write, rate or sign</b> on a receipt.</li>
+    <li>We <b>never</b> keep where you went on a map, show you ads, or share your stuff with anyone outside your family.</li>
+    <li>Your receipt link is secret. Only people you or your parents send it to can open it.</li>
+    <li>Your parents can delete everything about you at any time. If you want something deleted, ask them, or ask us.</li>
+  </ul>
+</section>
+
+<h2>Who is responsible for your data</h2>
+<p>Taxi of Mum &amp; Dad is run by Barry Sisk, Limerick, Ireland, who is the data controller.
+Contact: {% if contact_email %}<a href="mailto:{{ contact_email }}">{{ contact_email }}</a>{% else %}<i>[contact email to be added]</i>{% endif %}.</p>
+
+<h2>What we keep</h2>
+<div class="scroll"><table>
+  <tr><th>Data</th><th>Where it comes from</th><th>Why</th></tr>
+  <tr><td>Parent nickname and emoji ("Mum 👩")</td><td>You</td><td>To show who drove</td></tr>
+  <tr><td>Children's first names and emoji. An optional WhatsApp number, if you add one.</td><td>You (the parent)</td><td>To put names on receipts. The number only opens WhatsApp on <i>your</i> phone so you can send a receipt. We never message anyone.</td></tr>
+  <tr><td>Trips: distance, minutes, time, surcharges, optional destination note, passenger ratings</td><td>You</td><td>To work out the fare and keep the tab</td></tr>
+  <tr><td>Kids' driver/journey ratings, review comments and promise signatures</td><td>Your child, via their receipt link</td><td>The fun part! Signatures are deleted once the promise is ticked off or dropped.</td></tr>
+  <tr><td>Jobs, promises and the credit tab</td><td>You and your child</td><td>To keep score</td></tr>
+  <tr><td>A login cookie</td><td>Set when you sign up</td><td>Keeps you signed in. Strictly necessary, so no consent banner is needed.</td></tr>
+  <tr><td>Anonymous counts (e.g. "a family signed up from the video link")</td><td>Our server</td><td>To see what's working. These counts are not used to profile anyone and no tracking cookies are used.</td></tr>
+</table></div>
+
+<h2>What we never collect or do</h2>
+<ul>
+  <li><b>No GPS history.</b> Your phone uses location during a trip only to measure distance. Positions are never sent to us or stored.</li>
+  <li>No email addresses, passwords, payment details or photos.</li>
+  <li>No advertising, no selling or renting data, no profiling of children. Sponsors never receive any personal data.</li>
+  <li>No third-party trackers, and no fonts or scripts loaded from other companies.</li>
+</ul>
+
+<h2>Our legal basis</h2>
+<ul>
+  <li>To provide the app you asked for: performance of our agreement with you (GDPR Art. 6(1)(b)).</li>
+  <li>Children's details entered by parents, and kids' input on receipts: our legitimate interest in providing a family service (Art. 6(1)(f)). We've weighed this carefully in favour of the child: minimal data, no marketing, short retention and parental control.</li>
+  <li>Anonymous usage counts and security logs: legitimate interests (Art. 6(1)(f)).</li>
+</ul>
+<p>The app is for parents. Children don't sign up, and they use only the receipt link a parent sends them.</p>
+
+<h2>Who helps us run it</h2>
+<p>The app and its database are hosted in the European Union (Frankfurt, Germany) by Render and Neon. They act only on our instructions under data-processing agreements.
+Our hosting provider keeps standard server logs (such as IP addresses) for a short period for security.
+If you send a receipt with WhatsApp, that message is handled by WhatsApp under its own terms. We only prepare the text.</p>
+
+<h2>How long we keep it</h2>
+<ul>
+  <li>For as long as your family uses the app.</li>
+  <li>Promise signatures are deleted as soon as the promise is closed.</li>
+  <li>Receipt links stop working after 6 months.</li>
+  <li>Families with no activity for 12 months are deleted automatically.</li>
+  <li>When you press "Delete our family", everything is deleted straight away, apart from anonymous counts that can't identify you.</li>
+</ul>
+
+<h2>Your rights</h2>
+<p>In <b>Settings → Your data</b> you can download everything we hold (access and portability), edit any name or job (correction), delete a child or your whole family (erasure).
+You can also object to any processing or ask us anything at the contact above. We'll reply within one month.
+If you're unhappy with our answer, you can complain to the Data Protection Commission at <a href="https://www.dataprotection.ie">dataprotection.ie</a>.</p>
+
+<h2>Security</h2>
+<p>Everything travels over HTTPS. Receipt and invite links use long random codes. Only the drivers in your family can see your family's data.
+If something ever went wrong, we would tell the Data Protection Commission within 72 hours, and tell you if you were affected.</p>
+
+<h2>Changes</h2>
+<p>If we change this notice in a way that matters, we'll say so in the app first.</p>
+{% endblock %}

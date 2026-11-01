@@ -81,6 +81,8 @@
             border:2px dashed var(--ink); border-radius:8px; }
   .morejobs summary::-webkit-details-marker { display:none; }
   .morejobs[open] summary { margin-bottom:6px; }
+  .kidprivacy { margin-top:12px; font-size:12px; line-height:1.45; background:#f3f7ff; border:2px dashed #7a8cb8; border-radius:8px; padding:8px 10px; }
+  .kidprivacy a { color:inherit; }
 </style>
 </head>
 <body>
@@ -216,6 +218,9 @@
 
   <div class="checker"></div>
   <div class="small center">No refunds. No tipping required (hugs accepted).<br>Thank you for riding with {{ fam.name }}!</div>
+  <div class="kidprivacy">🔒 <b>Your privacy:</b> we only keep your first name, your trips and anything you write or sign here.
+    Only your family can see it, and Mum or Dad can delete it any time. No ads, nothing shared.
+    <a href="{{ url_for('privacy') }}#kids">More about privacy</a></div>
 </div>
   <div class="spread">
     <div class="sign small-sign">TAXI</div>
@@ -223,6 +228,7 @@
     {% set share_text = "🚕 Found a brilliant app: Taxi of Mum & Dad. Every lift goes on the kids' tab and they pay it off with chores (dishes, granny visits, fresh air…). Free for parents 👉 " ~ url_for('index', _external=True) ~ "?ref=receipt" %}
     <a class="share" href="https://wa.me/?text={{ share_text|urlencode }}" target="_blank" rel="noopener">💬 Know a parent who's a taxi too? Send it to them</a>
     <a class="small get" href="{{ url_for('index') }}?ref=receipt">Get the app</a>
+    <span class="small get"><a href="{{ url_for('privacy') }}" style="color:inherit">Privacy</a> · <a href="{{ url_for('terms') }}" style="color:inherit">Terms</a></span>
   </div>
 <script>
 (function () {

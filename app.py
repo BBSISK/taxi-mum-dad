@@ -199,6 +199,13 @@ def create_app(test_config=None):
 
     db.init_app(app)
     with app.app_context():
+        if db.engine.dialect.name == "sqlite":  # enforce foreign keys locally, like Postgres does in production
+            from sqlalchemy import event
+
+            @event.listens_for(db.engine, "connect")
+            def _fk_on(dbapi_conn, _record):
+                dbapi_conn.execute("PRAGMA foreign_keys=ON")
+            db.engine.dispose()
         db.create_all()
 
     register_routes(app)
@@ -215,17 +222,101 @@ def login_required(view):
     return wrapper
 
 
+def row_dict(obj):
+    out = {}
+    for col in obj.__table__.columns:
+        v = getattr(obj, col.name)
+        out[col.name] = v.isoformat() if hasattr(v, "isoformat") else v
+    return out
+
+
+def purge_kids(family_id, kid_ids):
+    """Hard-delete these children and everything about them (right to erasure)."""
+    if not kid_ids:
+        return
+    pax = Passenger.query.filter(Passenger.kid_id.in_(kid_ids)).all()
+    pax_ids = [p.id for p in pax]
+    trip_ids = {p.trip_id for p in pax}
+    Promise.query.filter(Promise.kid_id.in_(kid_ids)).delete(synchronize_session=False)
+    LedgerEntry.query.filter(LedgerEntry.kid_id.in_(kid_ids)).delete(synchronize_session=False)
+    if pax_ids:
+        Event.query.filter(Event.kind == "receipt_open", Event.subject_id.in_(pax_ids)).delete(synchronize_session=False)
+        Passenger.query.filter(Passenger.id.in_(pax_ids)).delete(synchronize_session=False)
+    for tid in trip_ids:  # a trip with no passengers left has nothing to keep
+        if not Passenger.query.filter_by(trip_id=tid).count():
+            Trip.query.filter_by(id=tid).delete(synchronize_session=False)
+    Kid.query.filter(Kid.id.in_(kid_ids), Kid.family_id == family_id).delete(synchronize_session=False)
+
+
+def purge_family(family_id):
+    """Hard-delete a whole family. Order matters for Postgres foreign keys."""
+    purge_kids(family_id, [k.id for k in Kid.query.filter_by(family_id=family_id).all()])
+    Promise.query.filter_by(family_id=family_id).delete(synchronize_session=False)
+    LedgerEntry.query.filter_by(family_id=family_id).delete(synchronize_session=False)
+    trip_ids = [t.id for t in Trip.query.filter_by(family_id=family_id).all()]
+    if trip_ids:
+        Passenger.query.filter(Passenger.trip_id.in_(trip_ids)).delete(synchronize_session=False)
+    Trip.query.filter_by(family_id=family_id).delete(synchronize_session=False)
+    Task.query.filter_by(family_id=family_id).delete(synchronize_session=False)
+    Event.query.filter_by(family_id=family_id).delete(synchronize_session=False)
+    Parent.query.filter_by(family_id=family_id).delete(synchronize_session=False)
+    Family.query.filter_by(id=family_id).delete(synchronize_session=False)
+
+
+RECEIPT_LIFETIME = dt.timedelta(days=183)   # receipt links stop working after ~6 months
+INACTIVE_FAMILY = dt.timedelta(days=365)    # families with no activity for 12 months are deleted
+_cleanup = {"last": None}
+
+
+def retention_cleanup(force=False):
+    """Delete families with no activity for 12 months. Runs at most once a day (piggybacks on health checks)."""
+    now = utcnow()
+    if not force and _cleanup["last"] and now - _cleanup["last"] < dt.timedelta(hours=24):
+        return 0
+    _cleanup["last"] = now
+    cutoff = now - INACTIVE_FAMILY
+    removed = 0
+    try:
+        for fam in Family.query.filter(Family.created_at < cutoff).all():
+            last_trip = db.session.query(func.max(Trip.created_at)).filter_by(family_id=fam.id).scalar()
+            last_ledger = db.session.query(func.max(LedgerEntry.created_at)).filter_by(family_id=fam.id).scalar()
+            if max(d for d in (fam.created_at, last_trip, last_ledger) if d) < cutoff:
+                purge_family(fam.id)
+                removed += 1
+        db.session.commit()
+    except Exception:  # noqa: BLE001 - never let housekeeping break a health check
+        db.session.rollback()
+    return removed
+
+
 def register_routes(app):
+    redirect_to = os.environ.get("REDIRECT_TO", "").rstrip("/")
+
+    @app.before_request
+    def moved_to_eu():
+        # The old US-hosted copy forwards everything (old links, QR codes) to the EU-hosted app.
+        if redirect_to and request.path != "/healthz":
+            return redirect(redirect_to + request.full_path.rstrip("?"), code=301)
+
+    @app.context_processor
+    def legal_context():
+        return {"contact_email": os.environ.get("CONTACT_EMAIL", ""), "policy_date": "1 November 2026"}
+
+    @app.get("/privacy")
+    def privacy():
+        return render_template("privacy.html")
+
+    @app.get("/terms")
+    def terms():
+        return render_template("terms.html")
+
     # ------------------------------------------------------------ shell / PWA
     @app.get("/")
     def index():
-        resp = Response(render_template("index.html"))
         ref = clean_ref(request.args.get("ref"))
-        if ref and not is_bot() and request.cookies.get("seen_ref") != ref:
+        if ref and not is_bot():  # no cookie, no device storage: just a count (ePrivacy-friendly)
             track("visit", ref=ref)
-            resp.set_cookie("seen_ref", ref, max_age=30 * 86400, samesite="Lax", httponly=True,
-                            secure=bool(os.environ.get("RENDER")))
-        return resp
+        return render_template("index.html")
 
     @app.get("/sw.js")
     def service_worker():
@@ -253,6 +344,8 @@ def register_routes(app):
 
     @app.get("/healthz")
     def healthz():
+        if not redirect_to:
+            retention_cleanup()
         return "ok"
 
     # ------------------------------------------------------------ auth
@@ -378,6 +471,39 @@ def register_routes(app):
         db.session.commit()
         return jsonify(ok=True)
 
+    @app.get("/api/export")
+    @login_required
+    def export_data(me):
+        fid = me.family_id
+        kid_ids = [k.id for k in Kid.query.filter_by(family_id=fid).all()]
+        trip_ids = [t.id for t in Trip.query.filter_by(family_id=fid).all()]
+        data = {
+            "exported_at": utcnow().isoformat() + "Z",
+            "about": "Everything Taxi of Mum & Dad stores about your family. GPS positions are never stored.",
+            "family": row_dict(db.session.get(Family, fid)),
+            "drivers": [row_dict(x) for x in Parent.query.filter_by(family_id=fid)],
+            "passengers": [row_dict(x) for x in Kid.query.filter_by(family_id=fid)],
+            "jobs": [row_dict(x) for x in Task.query.filter_by(family_id=fid)],
+            "trips": [row_dict(x) for x in Trip.query.filter_by(family_id=fid)],
+            "receipts": [row_dict(x) for x in Passenger.query.filter(Passenger.trip_id.in_(trip_ids))] if trip_ids else [],
+            "promises": [row_dict(x) for x in Promise.query.filter_by(family_id=fid)],
+            "ledger": [row_dict(x) for x in LedgerEntry.query.filter_by(family_id=fid)],
+        }
+        resp = jsonify(data)
+        resp.headers["Content-Disposition"] = f'attachment; filename="taxi-of-mum-and-dad-data-{utcnow():%Y-%m-%d}.json"'
+        return resp
+
+    @app.post("/api/family/delete")
+    @login_required
+    def delete_family(me):
+        data = request.get_json(silent=True) or {}
+        if (data.get("confirm") or "").strip().upper() != "DELETE":
+            return jsonify(error="Type DELETE to confirm"), 400
+        purge_family(me.family_id)
+        db.session.commit()
+        session.clear()
+        return jsonify(ok=True)
+
     @app.post("/api/family/new-code")
     @login_required
     def new_code(me):
@@ -436,6 +562,17 @@ def register_routes(app):
             kid.phone = normalise_phone(data["phone"])
         if data.get("archive"):
             kid.active = False
+        db.session.commit()
+        return jsonify(ok=True)
+
+    @app.post("/api/kids/<int:kid_id>/delete")
+    @login_required
+    def delete_kid(me, kid_id):
+        kid = get_kid(me, kid_id)
+        data = request.get_json(silent=True) or {}
+        if (data.get("confirm") or "").strip().upper() != "DELETE":
+            return jsonify(error="Type DELETE to confirm"), 400
+        purge_kids(me.family_id, [kid.id])
         db.session.commit()
         return jsonify(ok=True)
 
@@ -577,6 +714,7 @@ def register_routes(app):
         db.session.add(entry)
         db.session.flush()
         p.status, p.resolved_at, p.ledger_entry_id = "done", utcnow(), entry.id
+        p.signature = None  # data minimisation: the signature has done its job
         db.session.commit()
         return jsonify(balance=kid_balance(p.kid_id))
 
@@ -585,6 +723,7 @@ def register_routes(app):
     def promise_drop(me, promise_id):
         p = get_promise(me, promise_id)
         p.status, p.resolved_at = "dropped", utcnow()
+        p.signature = None
         db.session.commit()
         return jsonify(ok=True)
 
@@ -603,6 +742,11 @@ def register_routes(app):
         pax = Passenger.query.filter_by(token=token).first()
         if not pax:
             abort(404)
+        if pax.trip.created_at < utcnow() - RECEIPT_LIFETIME:
+            abort(Response("<!doctype html><meta name=viewport content='width=device-width'><body style='font-family:system-ui;"
+                           "text-align:center;padding:40px;background:#fff8e6'><h1>🚕 This receipt has expired</h1>"
+                           "<p>Old receipts stop working after 6 months to keep your info private.<br>"
+                           "Ask Mum or Dad to check your tab in the app.</p></body>", status=410))
         return pax
 
     @app.get("/r/<token>")

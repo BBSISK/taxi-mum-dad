@@ -133,6 +133,8 @@ function nav(active) {
 }
 
 const SHARE_TEXT = () => `🚕 Found a brilliant app: Taxi of Mum & Dad. Every lift goes on the kids' tab and they pay it off with chores (dishes, granny visits, fresh air…). Free for parents 👉 ${location.origin}/?ref=share`;
+// Which link brought this parent here? Held in memory only, sent once at sign-up, never stored on the device.
+const ENTRY_REF = new URLSearchParams(location.search).get('ref');
 const val = id => ($('#' + id)?.value || '').trim();
 
 /* ------------------------------------------------------------------ fare maths (mirrors server) */
@@ -201,7 +203,9 @@ const VIEWS = {
       ${emojiPicker('join', PARENT_EMOJI, '👨')}
       <div style="height:14px"></div>
       <button class="btn white" data-act="joinFamily">Join the firm</button>
-    </div>`;
+    </div>
+    <p class="small muted center">By opening for business or joining, you agree to our <a href="/terms">terms</a> and <a href="/privacy">privacy notice</a>.<br>
+      We keep first names and trips only. No GPS history, no ads, no data sold. Ever.</p>`;
   },
 
   home() {
@@ -259,7 +263,7 @@ const VIEWS = {
       `<button class="chip kid ${sel.includes(k.id) ? 'on' : ''}" data-act="toggleKid" data-id="${k.id}">${esc(k.emoji)} ${esc(k.name)}</button>`).join('')}</div>`
       : `<div class="empty"><p>Add a passenger first.</p><button class="btn slim" data-act="kidEdit">➕ Add a passenger</button></div>`}
     <h2>Where to? <span class="small muted">(optional)</span></h2>
-    <input id="s-note" type="text" maxlength="80" placeholder="Football training" value="${esc(view.note || '')}">
+    <input id="s-note" type="text" maxlength="80" placeholder="Football training (no addresses please)" value="${esc(view.note || '')}">
     <div class="chips" style="margin-top:10px">${PLACES.map(p => `<button class="chip" data-act="place" data-val="${esc(p)}">${esc(p)}</button>`).join('')}</div>
     <div style="height:20px"></div>
     <button class="btn big-go" data-act="startMeter" ${sel.length ? '' : 'disabled'}><span class="lamp">🚕</span> GO!</button>
@@ -394,7 +398,8 @@ const VIEWS = {
       <p class="small muted">With a number, receipts open straight to their chat. Without it, you pick the chat in WhatsApp.</p>
       <button class="btn" data-act="saveKid" data-id="${k?.id || ''}">${k ? 'Save' : 'Add passenger'}</button>
     </div>
-    ${k ? `<p class="center"><button class="link" data-act="archiveKid" data-id="${k.id}">Retire this passenger (keeps history)</button></p>` : ''}
+    ${k ? `<p class="center"><button class="link" data-act="archiveKid" data-id="${k.id}">Retire this passenger (keeps history)</button><br>
+      <button class="link" style="color:var(--red)" data-act="deleteKid" data-id="${k.id}" data-name="${esc(k.name)}">Delete ${esc(k.name)} and all their data</button></p>` : ''}
     ` + nav('');
   },
 
@@ -463,6 +468,13 @@ const VIEWS = {
       <label class="f" for="me-name">Driver name</label><input id="me-name" type="text" maxlength="40" value="${esc(S.me.name)}">
       <label class="f">Face</label>${emojiPicker('me', PARENT_EMOJI, S.me.emoji)}
       <div style="height:10px"></div><button class="btn" data-act="saveMe">Save</button>
+    </div>
+    <div class="card">
+      <h2 style="margin-top:0">🔒 Your data</h2>
+      <p class="small muted">We keep first names, trips, receipts and jobs. GPS is only used on your phone and never stored. No ads, nothing sold.</p>
+      <a class="btn white" href="/api/export" download>⬇️ Download our data</a>
+      <p class="small center" style="margin:10px 0 0"><a href="/privacy">Privacy notice</a> · <a href="/terms">Terms</a></p>
+      <p class="center" style="margin:6px 0 0"><button class="link" style="color:var(--red)" data-act="deleteFamily">Delete our family and all its data</button></p>
     </div>
     <p class="center"><button class="link" data-act="logout">Sign out on this phone</button></p>
     ` + nav('settings');
@@ -600,7 +612,7 @@ const ACTS = {
 
   async createFamily() {
     try {
-      await api('/api/family', { method: 'POST', body: { family_name: val('w-fam'), parent_name: val('w-name'), emoji: picks.new, ref: LS.get('taxi.ref') } });
+      await api('/api/family', { method: 'POST', body: { family_name: val('w-fam'), parent_name: val('w-name'), emoji: picks.new, ref: ENTRY_REF } });
       await refresh(); confetti(); go('home');
     } catch (e) { oops(e); }
   },
@@ -760,6 +772,20 @@ const ACTS = {
     if (!confirm('Make a new invite code? The old one stops working.')) return;
     try { await api('/api/family/new-code', { method: 'POST' }); await refresh(); go('settings'); } catch (e) { oops(e); }
   },
+  async deleteFamily() {
+    const typed = prompt('This permanently deletes your family, all passengers, trips, receipts and jobs, for both drivers. It cannot be undone.\n\nType DELETE to confirm:');
+    if (!typed) return;
+    try {
+      await api('/api/family/delete', { method: 'POST', body: { confirm: typed } });
+      S = null; ['taxi.state', 'taxi.meter', 'taxi.end'].forEach(LS.del);
+      go('welcome'); toast('🗑️ Family deleted. Thanks for riding with us.');
+    } catch (e) { oops(e); }
+  },
+  async deleteKid(el) {
+    const typed = prompt(`This permanently deletes ${el.dataset.name}, their trips, receipts, promises and tab. It cannot be undone.\n\nType DELETE to confirm:`);
+    if (!typed) return;
+    try { await api(`/api/kids/${el.dataset.id}/delete`, { method: 'POST', body: { confirm: typed } }); await refresh(); go('settings'); toast('🗑️ Deleted'); } catch (e) { oops(e); }
+  },
   async logout() {
     if (!confirm('Sign out on this phone?')) return;
     await api('/api/logout', { method: 'POST' }).catch(() => {});
@@ -807,9 +833,8 @@ document.addEventListener('change', async e => {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   const params = new URLSearchParams(location.search);
   const joining = params.get('join');
-  const ref = params.get('ref');
-  if (ref && !LS.get('taxi.ref')) LS.set('taxi.ref', ref);   // first touch wins: where did this parent hear about us?
-  if (ref && !joining) history.replaceState(null, '', '/');
+  LS.del('taxi.ref');  // older versions stored this; we no longer keep tracking data on the device
+  if (ENTRY_REF && !joining) history.replaceState(null, '', '/');
   if (LS.get('taxi.meter')) go('meter');          // never lose a running meter
   else if (S && !joining) go('home');               // instant start from cache
   try {

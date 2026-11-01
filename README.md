@@ -60,6 +60,20 @@ GPS needs HTTPS on a real phone, so test the meter on the Render URL (or use the
 Tables are created automatically on first boot (`db.create_all()`). There are no migrations yet. If you change a
 model later, add Flask-Migrate.
 
+## Where it runs (EU)
+
+- App: Render web service `taxi-mum-dad-eu` in **Frankfurt**: https://taxi-mum-dad-eu.onrender.com
+- Database: Neon project `taxi-mum-dad` in **AWS eu-central-1 (Frankfurt)**
+- The original US service `taxi-mum-dad` (Oregon) only redirects to the EU app (`REDIRECT_TO`), so old links and QR codes keep working.
+
+## Privacy & GDPR
+
+- `/privacy` and `/terms` (drafts, pending professional review). Kids get a plain-language version on receipts and at `/privacy#kids`.
+- Settings → Your data: download everything (JSON), delete a child, or delete the whole family (hard delete).
+- No GPS stored, no tracking cookies, fonts self-hosted (no Google calls). `?ref=` is counted server-side only.
+- Retention: signatures deleted when a promise closes, receipt links expire after 6 months, families inactive for 12 months are deleted (runs daily via `/healthz`).
+- `TEST_DATABASE_URL=postgresql+psycopg://... pytest` runs the suite against real Postgres.
+
 ## Environment variables
 
 | Var | Default | Notes |
@@ -67,6 +81,9 @@ model later, add Flask-Migrate.
 | `DATABASE_URL` | `sqlite:///taxi.db` | `postgres://` URLs are rewritten for psycopg 3 |
 | `SECRET_KEY` | dev value | **required** on Render (the app refuses to start without it) |
 | `TZ_NAME` | `Europe/Dublin` | receipt timestamps |
+| `STATS_KEY` | (none) | enables `/stats?key=...` |
+| `CONTACT_EMAIL` | (none) | shown on the privacy notice and terms |
+| `REDIRECT_TO` | (none) | set only on the old US service: forwards every request to the EU app |
 
 ## Ideas for v2
 

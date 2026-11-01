@@ -1,3 +1,8 @@
+/* Fonts are self-hosted (SIL Open Font License) so no visitor data goes to Google. */
+@font-face { font-family: "Bungee"; src: url("fonts/bungee-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Nunito"; src: url("fonts/nunito-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Nunito"; src: url("fonts/nunito-800.woff2") format("woff2"); font-weight: 800; font-display: swap; }
+@font-face { font-family: "Nunito"; src: url("fonts/nunito-900.woff2") format("woff2"); font-weight: 900; font-display: swap; }
 :root {
   --taxi: #ffc20e;
   --taxi-deep: #f0a500;
@@ -219,3 +224,5 @@ details.card summary { cursor: pointer; font-weight: 900; }
 body:has(.drive) { padding-bottom: 0; }
 body:has(.drive) #toast { bottom: calc(150px + env(safe-area-inset-bottom)); }
 @media (min-height: 780px) { .live { min-height: 104px; } .live .e { font-size: 38px; } .live .t { font-size: 14px; } }
+
+.muted a, .small a { color: inherit; }

@@ -1,11 +1,25 @@
+import os
+
 import pytest
 
 from app import create_app, normalise_phone
+from models import db
 
 
 @pytest.fixture()
 def app():
-    return create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite://"})
+    # TEST_DATABASE_URL=postgresql://... runs the suite against real Postgres (foreign keys and all)
+    url = os.environ.get("TEST_DATABASE_URL", "sqlite://")
+    application = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": url})
+    if url != "sqlite://":
+        with application.app_context():
+            db.drop_all()
+            db.create_all()
+    yield application
+    if url != "sqlite://":
+        with application.app_context():
+            db.session.remove()
+            db.drop_all()
 
 
 @pytest.fixture()
@@ -164,7 +178,7 @@ def test_ref_tracking_and_stats_page(app):
     app.config["STATS_KEY"] = "s3cret"
     visitor = app.test_client()
     visitor.get("/?ref=video", headers={"User-Agent": "Mozilla/5.0 (iPhone)"})
-    visitor.get("/?ref=video", headers={"User-Agent": "Mozilla/5.0 (iPhone)"})  # same person: counted once
+    visitor.get("/?ref=video", headers={"User-Agent": "Mozilla/5.0 (iPhone)"})  # no cookie, so counted again
     app.test_client().get("/?ref=video", headers={"User-Agent": "WhatsApp/2.23"})  # link preview bot: ignored
     visitor.post("/api/family", json={"parent_name": "Mum", "ref": "video"})
     k = visitor.post("/api/kids", json={"name": "Keelah"}).get_json()["id"]
@@ -175,6 +189,109 @@ def test_ref_tracking_and_stats_page(app):
     assert app.test_client().get("/stats").status_code == 404
     assert app.test_client().get("/stats?key=wrong").status_code == 404
     page = app.test_client().get("/stats?key=s3cret").get_data(as_text=True)
-    assert "<td>video</td><td>1</td><td>1</td><td>100%</td><td>1</td><td>1</td>" in page.replace("\n", "").replace("    ", "")
+    assert "<td>video</td><td>2</td><td>1</td><td>50%</td><td>1</td><td>1</td>" in page.replace("\n", "").replace("    ", "")
+    assert "seen_ref" not in str(visitor.get("/?ref=video").headers)
     assert "100%</b><span>receipts opened" in page
     assert "Keelah" not in page and "Mum" not in page.split("Taxi of Mum")[1].split("</header>")[1]
+
+
+# ---------------------------------------------------------------- GDPR
+import datetime as dt
+from models import Event, Family, Kid, LedgerEntry, Passenger, Promise, Task, Trip, db, utcnow
+
+
+def _family_with_history(app, client, name=None):
+    if name:  # a new client: open a new family; otherwise reuse the client's family
+        client.post("/api/family", json={"family_name": name + " Cabs", "parent_name": name})
+    k1 = client.post("/api/kids", json={"name": "Keelah", "phone": "087 123 4567"}).get_json()["id"]
+    k2 = client.post("/api/kids", json={"name": "Sam"}).get_json()["id"]
+    trip = client.post("/api/trips", json={"kid_ids": [k1, k2], "distance_km": 9, "minutes": 20}).get_json()["trip"]
+    solo = client.post("/api/trips", json={"kid_ids": [k1], "distance_km": 2, "minutes": 5}).get_json()["trip"]
+    tok = trip["passengers"][0]["token"]
+    task = state(client)["tasks"][0]
+    app.test_client().post(f"/r/{tok}/promise", data={"task_id": task["id"], "due": "today", "signature": "data:image/png;base64,AAAA"})
+    client.post("/api/payments", json={"kid_id": k1, "task_id": task["id"]})
+    return k1, k2, trip, solo
+
+
+def test_export_contains_everything(app, mum):
+    other = app.test_client()
+    k1, k2, trip, solo = _family_with_history(app, other, "Dad")
+    r = other.get("/api/export")
+    assert "attachment" in r.headers["Content-Disposition"]
+    data = r.get_json()
+    assert {p["name"] for p in data["passengers"]} == {"Keelah", "Sam"}
+    assert len(data["trips"]) == 2 and len(data["receipts"]) == 3 and len(data["promises"]) == 1
+    assert data["family"]["name"] == "Dad Cabs" and "Sisk Cabs" not in str(data)  # nothing from another family
+    assert app.test_client().get("/api/export").status_code == 401
+
+
+def test_delete_family_removes_all_rows(app, mum):
+    _family_with_history(app, mum)
+    other = app.test_client()
+    _family_with_history(app, other, "Dad")
+    assert mum.post("/api/family/delete", json={"confirm": "nope"}).status_code == 400
+    assert mum.post("/api/family/delete", json={"confirm": "delete"}).status_code == 200
+    assert mum.get("/api/state").status_code == 401  # signed out
+    with app.app_context():
+        assert Family.query.count() == 1 and Kid.query.count() == 2 and Trip.query.count() == 2
+        assert Promise.query.count() == 1 and Passenger.query.count() == 3
+        fid = Family.query.first().id
+        for model in (Kid, Trip, Task, LedgerEntry, Promise):
+            assert all(x.family_id == fid for x in model.query.all())
+        assert all(e.family_id in (None, fid) for e in Event.query.all())
+    assert state(other)["kids"]  # the other family is untouched
+
+
+def test_delete_one_child(app, mum):
+    k1, k2, trip, solo = _family_with_history(app, mum)
+    assert mum.post(f"/api/kids/{k1}/delete", json={"confirm": "DELETE"}).status_code == 200
+    s = state(mum)
+    assert [k["name"] for k in s["kids"]] == ["Sam"]
+    assert [t["id"] for t in s["trips"]] == [trip["id"]]  # Keelah's solo trip is gone, the shared one stays for Sam
+    assert [p["name"] for p in s["trips"][0]["passengers"]] == ["Sam"]
+    assert s["promises"] == []
+    assert mum.get(f"/r/{solo['passengers'][0]['token']}").status_code == 404
+
+
+def test_signature_deleted_when_promise_closed(app, mum):
+    _family_with_history(app, mum)
+    pid = state(mum)["promises"][0]["id"]
+    mum.post(f"/api/promises/{pid}/done")
+    with app.app_context():
+        assert db.session.get(Promise, pid).signature is None
+
+
+def test_receipt_expires_and_inactive_families_are_deleted(app, mum):
+    from app import retention_cleanup
+    k1, k2, trip, solo = _family_with_history(app, mum)
+    tok = trip["passengers"][0]["token"]
+    with app.app_context():
+        old = utcnow() - dt.timedelta(days=400)
+        for t in Trip.query.all():
+            t.created_at = old
+        for e in LedgerEntry.query.all():
+            e.created_at = old
+        Family.query.first().created_at = old
+        db.session.commit()
+    assert app.test_client().get(f"/r/{tok}").status_code == 410
+    with app.app_context():
+        assert retention_cleanup(force=True) == 1
+        assert Family.query.count() == 0 and Kid.query.count() == 0 and Trip.query.count() == 0
+
+
+def test_privacy_pages_and_no_third_party_fonts(app):
+    c = app.test_client()
+    for path in ("/privacy", "/terms"):
+        assert c.get(path).status_code == 200
+    assert "For kids" in c.get("/privacy").get_data(as_text=True)
+    assert "googleapis" not in c.get("/").get_data(as_text=True)
+
+
+def test_old_host_redirects(monkeypatch):
+    from app import create_app
+    monkeypatch.setenv("REDIRECT_TO", "https://taxi-mum-dad-eu.onrender.com/")
+    old = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite://"}).test_client()
+    r = old.get("/r/abc?x=1")
+    assert r.status_code == 301 and r.location == "https://taxi-mum-dad-eu.onrender.com/r/abc?x=1"
+    assert old.get("/healthz").status_code == 200

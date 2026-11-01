@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{% endblock %} - Taxi of Mum &amp; Dad</title>
+<link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+<style>
+  @font-face { font-family:"Bungee"; src:url("{{ url_for('static', filename='fonts/bungee-400.woff2') }}") format("woff2"); font-display:swap; }
+  :root { --taxi:#ffc20e; --ink:#141414; --paper:#fff8e6; --muted:#6d6658; }
+  * { box-sizing:border-box; } body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  header { background:var(--taxi); border-bottom:4px solid var(--ink); padding:14px 16px; }
+  header a { color:var(--ink); text-decoration:none; font-family:"Bungee",Impact,sans-serif; font-size:20px; }
+  main { max-width:720px; margin:0 auto; padding:16px 16px 60px; }
+  h1 { font-size:26px; margin:10px 0 2px; } h2 { font-size:19px; margin:28px 0 6px; }
+  .meta { color:var(--muted); font-size:14px; }
+  .draft { background:#fff0f0; border:2px dashed #d64545; border-radius:10px; padding:10px 12px; font-size:14px; margin:12px 0; }
+  .kids { background:#f3f7ff; border:3px solid #7a8cb8; border-radius:14px; padding:12px 14px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; background:#fff; } th, td { border:1px solid #e3d9bd; padding:8px; text-align:left; vertical-align:top; }
+  th { background:var(--ink); color:var(--taxi); }
+  .scroll { overflow-x:auto; }
+</style></head>
+<body><header><a href="{{ url_for('index') }}">🚕 Taxi of Mum &amp; Dad</a></header>
+<main>
+  <div class="draft"><b>Draft</b> - this page is awaiting review by a data-protection professional and may change.</div>
+  {% block body %}{% endblock %}
+  <p class="meta" style="margin-top:36px"><a href="{{ url_for('privacy') }}">Privacy</a> · <a href="{{ url_for('terms') }}">Terms</a> · <a href="{{ url_for('index') }}">Back to the app</a></p>
+</main></body></html>
