@@ -158,3 +158,23 @@ def test_live_surcharges_count_and_cap(mum):
     assert "Know a parent" in page and "og.png" in page
     live = [e for e in state(mum)["extras"] if e.get("live")]
     assert len(live) == 5
+
+
+def test_ref_tracking_and_stats_page(app):
+    app.config["STATS_KEY"] = "s3cret"
+    visitor = app.test_client()
+    visitor.get("/?ref=video", headers={"User-Agent": "Mozilla/5.0 (iPhone)"})
+    visitor.get("/?ref=video", headers={"User-Agent": "Mozilla/5.0 (iPhone)"})  # same person: counted once
+    app.test_client().get("/?ref=video", headers={"User-Agent": "WhatsApp/2.23"})  # link preview bot: ignored
+    visitor.post("/api/family", json={"parent_name": "Mum", "ref": "video"})
+    k = visitor.post("/api/kids", json={"name": "Keelah"}).get_json()["id"]
+    pax = visitor.post("/api/trips", json={"kid_ids": [k], "distance_km": 5, "minutes": 10}).get_json()["trip"]["passengers"][0]
+    visitor.get(f"/r/{pax['token']}")  # parent checking: not counted as a kid open
+    app.test_client().get(f"/r/{pax['token']}", headers={"User-Agent": "Mozilla/5.0 (iPhone)"})
+
+    assert app.test_client().get("/stats").status_code == 404
+    assert app.test_client().get("/stats?key=wrong").status_code == 404
+    page = app.test_client().get("/stats?key=s3cret").get_data(as_text=True)
+    assert "<td>video</td><td>1</td><td>1</td><td>100%</td><td>1</td><td>1</td>" in page.replace("\n", "").replace("    ", "")
+    assert "100%</b><span>receipts opened" in page
+    assert "Keelah" not in page and "Mum" not in page.split("Taxi of Mum")[1].split("</header>")[1]

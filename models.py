@@ -191,3 +191,14 @@ class Promise(db.Model):
     resolved_at = db.Column(db.DateTime)
 
     kid = db.relationship("Kid")
+
+
+class Event(db.Model):
+    """Anonymous product analytics: no names, no positions - just counts.
+    kind: visit (landing page, with ?ref=), signup (new family), join (co-driver), receipt_open."""
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(16), nullable=False, index=True)
+    ref = db.Column(db.String(24), index=True)
+    family_id = db.Column(db.Integer, index=True)
+    subject_id = db.Column(db.Integer)  # e.g. passenger id for receipt_open
+    created_at = db.Column(db.DateTime, default=utcnow, index=True)

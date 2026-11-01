@@ -10,6 +10,8 @@ import re
 from functools import wraps
 from zoneinfo import ZoneInfo
 
+import secrets
+
 import segno
 from flask import (Flask, Response, abort, jsonify, redirect, render_template,
                    request, send_from_directory, session, url_for)
@@ -17,7 +19,7 @@ from sqlalchemy import func
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from models import (DEFAULT_TASKS, EXTRAS, FIVE_STAR_DISCOUNT, MAX_PER_EXTRA, PASSENGER_TAGS,
-                    Family, Kid, LedgerEntry, Parent, Passenger, Promise, Task, Trip, db,
+                    Event, Family, Kid, LedgerEntry, Parent, Passenger, Promise, Task, Trip, db,
                     new_invite_code, utcnow)
 
 LOCAL_TZ = ZoneInfo(os.environ.get("TZ_NAME", "Europe/Dublin"))
@@ -140,6 +142,28 @@ def promise_json(p):
             "due": due_label(p.due_on), "overdue": p.due_on < local_today(), "signature": p.signature or ""}
 
 
+BOT_UA = re.compile(r"bot|crawl|spider|preview|facebookexternalhit|whatsapp|slack|telegram|discord|twitter|curl|python|headless", re.I)
+REF_OK = re.compile(r"^[a-z0-9_-]{1,24}$")
+
+
+def clean_ref(raw):
+    raw = (raw or "").strip().lower()
+    return raw if REF_OK.match(raw) else None
+
+
+def is_bot():
+    return bool(BOT_UA.search(request.headers.get("User-Agent", "")))
+
+
+def track(kind, ref=None, family_id=None, subject_id=None):
+    """Best-effort: analytics must never break the app."""
+    try:
+        db.session.add(Event(kind=kind, ref=ref, family_id=family_id, subject_id=subject_id))
+        db.session.commit()
+    except Exception:  # noqa: BLE001
+        db.session.rollback()
+
+
 def avg(values):
     values = [v for v in values if v]
     return round(sum(values) / len(values), 1) if values else None
@@ -195,7 +219,13 @@ def register_routes(app):
     # ------------------------------------------------------------ shell / PWA
     @app.get("/")
     def index():
-        return render_template("index.html")
+        resp = Response(render_template("index.html"))
+        ref = clean_ref(request.args.get("ref"))
+        if ref and not is_bot() and request.cookies.get("seen_ref") != ref:
+            track("visit", ref=ref)
+            resp.set_cookie("seen_ref", ref, max_age=30 * 86400, samesite="Lax", httponly=True,
+                            secure=bool(os.environ.get("RENDER")))
+        return resp
 
     @app.get("/sw.js")
     def service_worker():
@@ -208,6 +238,18 @@ def register_routes(app):
     def manifest():
         return send_from_directory(app.static_folder, "manifest.webmanifest",
                                    mimetype="application/manifest+json")
+
+    @app.get("/stats")
+    def stats_page():
+        from stats import compute_stats
+        key = os.environ.get("STATS_KEY") or app.config.get("STATS_KEY")
+        if not key or not secrets.compare_digest(request.args.get("key", ""), key):
+            abort(404)
+        resp = Response(render_template("stats.html", s=compute_stats(), key=key))
+        resp.headers["X-Robots-Tag"] = "noindex"
+        resp.headers["Cache-Control"] = "no-store"
+        resp.headers["Referrer-Policy"] = "no-referrer"
+        return resp
 
     @app.get("/healthz")
     def healthz():
@@ -233,6 +275,7 @@ def register_routes(app):
         for emoji, name, credits in DEFAULT_TASKS:
             db.session.add(Task(family_id=family.id, name=name, emoji=emoji, credits=credits))
         db.session.commit()
+        track("signup", ref=clean_ref(data.get("ref")) or "direct", family_id=family.id)
         start_session(parent)
         return jsonify(ok=True)
 
@@ -251,6 +294,7 @@ def register_routes(app):
         parent = Parent(family_id=family.id, name=parent_name, emoji=clean_emoji(data.get("emoji"), "🧑"))
         db.session.add(parent)
         db.session.commit()
+        track("join", ref="invite", family_id=family.id)
         start_session(parent)
         return jsonify(ok=True)
 
@@ -566,6 +610,8 @@ def register_routes(app):
         pax = get_passenger(token)
         trip = pax.trip
         fam = db.session.get(Family, trip.family_id)
+        if not is_bot() and session.get("parent_id") is None:  # count kids opening it, not parents checking
+            track("receipt_open", family_id=fam.id, subject_id=pax.id)
         tasks = (Task.query.filter_by(family_id=fam.id, active=True).order_by(Task.credits).all())
         promises = (Promise.query.filter_by(kid_id=pax.kid_id, status="promised")
                     .order_by(Promise.due_on, Promise.id).all())

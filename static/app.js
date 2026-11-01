@@ -600,7 +600,7 @@ const ACTS = {
 
   async createFamily() {
     try {
-      await api('/api/family', { method: 'POST', body: { family_name: val('w-fam'), parent_name: val('w-name'), emoji: picks.new } });
+      await api('/api/family', { method: 'POST', body: { family_name: val('w-fam'), parent_name: val('w-name'), emoji: picks.new, ref: LS.get('taxi.ref') } });
       await refresh(); confetti(); go('home');
     } catch (e) { oops(e); }
   },
@@ -805,7 +805,11 @@ document.addEventListener('change', async e => {
 /* ------------------------------------------------------------------ boot */
 (async function boot() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
-  const joining = new URLSearchParams(location.search).get('join');
+  const params = new URLSearchParams(location.search);
+  const joining = params.get('join');
+  const ref = params.get('ref');
+  if (ref && !LS.get('taxi.ref')) LS.set('taxi.ref', ref);   // first touch wins: where did this parent hear about us?
+  if (ref && !joining) history.replaceState(null, '', '/');
   if (LS.get('taxi.meter')) go('meter');          // never lose a running meter
   else if (S && !joining) go('home');               // instant start from cache
   try {
