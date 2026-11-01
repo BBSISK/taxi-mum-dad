@@ -7,6 +7,8 @@
 <title>🚕 Receipt for {{ kid.name }} - Taxi of Mum &amp; Dad</title>
 <meta property="og:title" content="🚕 Taxi receipt: {{ pax.fare }} {{ fam.currency }}">
 <meta property="og:description" content="{{ kid.name }}, your ride with {{ driver.name }} is on the tab. Running total: {{ balance }}.">
+<meta property="og:image" content="{{ url_for('static', filename='og.png', _external=True) }}">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
 <style>
   :root { --paper:#fffdf6; --ink:#1a1a1a; --taxi:#ffc20e; --muted:#6b6b6b; --bg:#2b2b2b; }
@@ -47,6 +49,34 @@
   button { width:100%; margin-top:10px; padding:14px; font:bold 16px "Courier New",monospace; background:var(--taxi);
            border:3px solid var(--ink); border-radius:10px; cursor:pointer; }
   .thanks { background:#e6ffe6; border:2px solid #2e7d32; border-radius:8px; padding:10px; text-align:center; }
+  .stamp.big { font-size:20px; margin:4px 0; }
+  .signed-banner { text-align:center; background:#fff4cc; border:2px dashed #c0392b; border-radius:8px; padding:10px; margin:10px 0; }
+  .promise { border:2px solid var(--ink); border-radius:8px; padding:8px 10px; margin:6px 0; background:#fff; }
+  .due { font-weight:bold; font-size:12px; border:2px solid #2e7d32; color:#2e7d32; border-radius:4px; padding:1px 6px; transform:rotate(-3deg); display:inline-block; }
+  .due.late { border-color:#c0392b; color:#c0392b; }
+  .sig { height:34px; max-width:120px; object-fit:contain; }
+  .jobs { margin:8px 0; }
+  .jobs input, .when input { position:absolute; opacity:0; width:1px; height:1px; }
+  .jobrow { display:flex; justify-content:space-between; gap:10px; font-size:14px; padding:9px 8px; border-bottom:1px dotted #ccc; cursor:pointer; border-radius:6px; }
+  .jobs input:checked + .jobrow { background:var(--taxi); font-weight:bold; border:2px solid var(--ink); }
+  .jobs input:focus-visible + .jobrow, .when input:focus-visible + label { outline:2px solid var(--ink); }
+  .jobrow.taken { color:var(--muted); cursor:default; text-decoration:line-through; }
+  .when { display:flex; gap:6px; margin:10px 0; }
+  .when label { flex:1; text-align:center; border:2px solid var(--ink); border-radius:999px; padding:8px 4px; font-size:13px; cursor:pointer; background:#fff; }
+  .when input:checked + label { background:var(--taxi); font-weight:bold; }
+  .sigbox { position:relative; border:2px dashed var(--ink); border-radius:8px; background:#fff; margin-top:6px; }
+  .sigbox canvas { width:100%; height:120px; display:block; touch-action:none; cursor:crosshair; }
+  .sigline { position:absolute; left:12px; bottom:10px; right:60px; border-top:1px solid #999; font-size:11px; color:var(--muted); padding-top:2px; pointer-events:none; }
+  .clear { position:absolute; right:6px; top:6px; width:auto; margin:0; padding:4px 8px; font-size:12px; border-width:2px; background:#fff; }
+  .err { color:#c0392b; text-align:center; font-weight:bold; min-height:1em; margin-top:6px; }
+  @keyframes shake { 25% { transform:translateX(-6px); } 75% { transform:translateX(6px); } }
+  .shake { animation:shake .3s 2; }
+  .spread { max-width:380px; margin:28px auto 0; background:var(--taxi); border:3px solid var(--ink); border-radius:12px; padding:14px;
+            display:grid; grid-template-columns:auto 1fr; gap:10px; align-items:center; font-family:system-ui,-apple-system,sans-serif; box-shadow:0 6px 0 #000; }
+  .small-sign { font-size:16px; padding:2px 8px; letter-spacing:2px; }
+  .spread .share { grid-column:1 / -1; display:block; text-align:center; background:#25d366; color:var(--ink); font-weight:800; text-decoration:none;
+            border:3px solid var(--ink); border-radius:10px; padding:12px; }
+  .spread .get { grid-column:1 / -1; text-align:center; color:var(--ink); }
 </style>
 </head>
 <body>
@@ -98,10 +128,54 @@
     {% if balance <= 0 %}All square - legend! 🎉{% else %}Pay it off with any of these 👇{% endif %}
   </div>
 
-  {% if balance > 0 and tasks %}
-  <ul>
-    {% for t in tasks %}<li><span>{{ t.emoji }} {{ t.name }}</span><span>-{{ t.credits }}</span></li>{% endfor %}
-  </ul>
+  {% if signed %}
+  <div class="signed-banner"><div class="stamp big">CONTRACT SIGNED</div><br>Now go and do it! 💪<br><span class="small">Mum or Dad will tick it off when it's done.</span></div>
+  {% endif %}
+
+  {% if promises %}
+  <div id="promises">
+    <div class="q">Your signed promises 🤝</div>
+    {% for p in promises %}
+    <div class="promise">
+      <div class="row" style="margin:0"><span>{{ p.emoji }} {{ p.label }}</span><span>-{{ p.credits }}</span></div>
+      <div class="row" style="margin:2px 0 0;align-items:center">
+        <span class="due {% if p.overdue %}late{% endif %}">{{ p.due|upper }}</span>
+        {% if p.signature %}<img class="sig" src="{{ p.signature }}" alt="signature">{% else %}<span class="small">signed</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if balance > 0 and tasks and can_promise %}
+  <form id="promise" method="post" action="{{ url_for('make_promise', token=pax.token) }}" novalidate>
+    <div class="q">Sign up to pay it off ✍️</div>
+    <div class="small center">1. Pick a job &nbsp; 2. Say when &nbsp; 3. Sign</div>
+    <div class="jobs">
+      {% for t in tasks %}
+        {% set taken = t.id in promised_task_ids %}
+        <input type="radio" name="task_id" value="{{ t.id }}" id="t{{ t.id }}" {% if taken %}disabled{% endif %}>
+        <label for="t{{ t.id }}" class="jobrow {% if taken %}taken{% endif %}"><span>{{ t.emoji }} {{ t.name }}</span><span>{% if taken %}✓ promised{% else %}-{{ t.credits }}{% endif %}</span></label>
+      {% endfor %}
+    </div>
+    <div class="when">
+      {% for key, label in due_choices.items() %}
+        <input type="radio" name="due" value="{{ key }}" id="due-{{ key }}" {% if loop.first %}checked{% endif %}>
+        <label for="due-{{ key }}">{{ label }}</label>
+      {% endfor %}
+    </div>
+    <div class="sigbox">
+      <canvas id="sig" width="600" height="200" aria-label="Sign here with your finger"></canvas>
+      <span class="sigline">✕ sign here, {{ kid.name }}</span>
+      <button type="button" class="clear" id="sig-clear">clear</button>
+    </div>
+    <input type="hidden" name="signature" id="sig-data">
+    <div class="err" id="promise-err" role="alert"></div>
+    <button type="submit">Sign the contract ✍️</button>
+    <div class="small center" style="margin-top:6px">Credits come off once Mum or Dad confirms it's done.</div>
+  </form>
+  {% elif balance > 0 and tasks %}
+  <div class="small center">That's plenty of promises for now - go do some! 😅</div>
   {% endif %}
 
   <hr>
@@ -129,5 +203,34 @@
   <div class="checker"></div>
   <div class="small center">No refunds. No tipping required (hugs accepted).<br>Thank you for riding with {{ fam.name }}!</div>
 </div>
+  <div class="spread">
+    <div class="sign small-sign">TAXI</div>
+    <div><b>Taxi of Mum &amp; Dad</b><br><span class="small">Every lift goes on the tab. Free for parents.</span></div>
+    {% set share_text = "🚕 Found a brilliant app: Taxi of Mum & Dad. Every lift goes on the kids' tab and they pay it off with chores (dishes, granny visits, fresh air…). Free for parents 👉 " ~ url_for('index', _external=True) ~ "?ref=receipt" %}
+    <a class="share" href="https://wa.me/?text={{ share_text|urlencode }}" target="_blank" rel="noopener">💬 Know a parent who's a taxi too? Send it to them</a>
+    <a class="small get" href="{{ url_for('index') }}?ref=receipt">Get the app</a>
+  </div>
+<script>
+(function () {
+  var form = document.getElementById('promise');
+  if (!form) return;
+  var c = document.getElementById('sig'), ctx = c.getContext('2d'), drawn = false, last = null;
+  ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1a3c8f';
+  function pt(e) { var r = c.getBoundingClientRect(); return { x: (e.clientX - r.left) * c.width / r.width, y: (e.clientY - r.top) * c.height / r.height }; }
+  form.addEventListener('change', function () { document.getElementById('promise-err').textContent = ''; });
+  c.addEventListener('pointerdown', function (e) { document.getElementById('promise-err').textContent = ''; c.setPointerCapture(e.pointerId); last = pt(e); ctx.beginPath(); ctx.arc(last.x, last.y, 2, 0, 7); ctx.fillStyle = ctx.strokeStyle; ctx.fill(); drawn = true; });
+  c.addEventListener('pointermove', function (e) { if (!last) return; var p = pt(e); ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); last = p; });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (t) { c.addEventListener(t, function () { last = null; }); });
+  document.getElementById('sig-clear').onclick = function () { ctx.clearRect(0, 0, c.width, c.height); drawn = false; };
+  form.addEventListener('submit', function (e) {
+    var err = document.getElementById('promise-err'), msg = '';
+    if (!form.querySelector('input[name=task_id]:checked')) msg = '👆 Pick a job first';
+    else if (!drawn) msg = '✍️ Sign on the line - it\'s a contract!';
+    if (msg) { e.preventDefault(); err.textContent = msg; form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake'); return; }
+    document.getElementById('sig-data').value = c.toDataURL('image/png');
+    form.querySelector('button[type=submit]').disabled = true;
+  });
+})();
+</script>
 </body>
 </html>

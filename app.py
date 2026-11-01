@@ -16,8 +16,8 @@ from flask import (Flask, Response, abort, jsonify, redirect, render_template,
 from sqlalchemy import func
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from models import (DEFAULT_TASKS, EXTRAS, FIVE_STAR_DISCOUNT, PASSENGER_TAGS,
-                    Family, Kid, LedgerEntry, Parent, Passenger, Task, Trip, db,
+from models import (DEFAULT_TASKS, EXTRAS, FIVE_STAR_DISCOUNT, MAX_PER_EXTRA, PASSENGER_TAGS,
+                    Family, Kid, LedgerEntry, Parent, Passenger, Promise, Task, Trip, db,
                     new_invite_code, utcnow)
 
 LOCAL_TZ = ZoneInfo(os.environ.get("TZ_NAME", "Europe/Dublin"))
@@ -70,7 +70,12 @@ def rnd(x):
 
 def compute_fare(family, km, minutes, extra_keys, stars_by_kid, kid_ids):
     """Return (total, breakdown, shares) where shares = {kid_id: (fare, discount)}."""
-    extras = [{"key": k, **EXTRAS[k]} for k in extra_keys if k in EXTRAS]
+    counts = {}
+    for k in extra_keys:
+        if k in EXTRAS and counts.get(k, 0) < MAX_PER_EXTRA:
+            counts[k] = counts.get(k, 0) + 1
+    extras = [{"key": k, "count": n, "label": EXTRAS[k]["label"] + (f" ×{n}" if n > 1 else ""),
+               "credits": EXTRAS[k]["credits"] * n} for k, n in counts.items()]
     breakdown = {
         "flag_fall": round(family.flag_fall, 2),
         "distance": round(km * family.per_km, 2),
@@ -98,6 +103,41 @@ def balances(family_id):
 
 def kid_balance(kid_id):
     return int(db.session.query(func.coalesce(func.sum(LedgerEntry.credits), 0)).filter_by(kid_id=kid_id).scalar())
+
+
+MAX_OPEN_PROMISES = 8
+SIGNATURE_MAX = 60_000
+DUE_CHOICES = {"today": "Today", "tomorrow": "Tomorrow", "weekend": "By the weekend"}
+
+
+def local_today():
+    return dt.datetime.now(LOCAL_TZ).date()
+
+
+def due_date(choice):
+    today = local_today()
+    if choice == "tomorrow":
+        return today + dt.timedelta(days=1)
+    if choice == "weekend":
+        return today + dt.timedelta(days=(6 - today.weekday()) or 7)  # this Sunday (next Sunday if today is Sunday)
+    return today
+
+
+def due_label(day):
+    today = local_today()
+    if day < today:
+        return "OVERDUE"
+    if day == today:
+        return "today"
+    if day == today + dt.timedelta(days=1):
+        return "tomorrow"
+    return "by " + day.strftime("%a %d %b")
+
+
+def promise_json(p):
+    return {"id": p.id, "kid_id": p.kid_id, "kid": p.kid.name, "kid_emoji": p.kid.emoji,
+            "label": p.label, "emoji": p.emoji or "⭐", "credits": p.credits,
+            "due": due_label(p.due_on), "overdue": p.due_on < local_today(), "signature": p.signature or ""}
 
 
 def avg(values):
@@ -260,6 +300,8 @@ def register_routes(app):
             five_star_discount=FIVE_STAR_DISCOUNT,
             drivers=drivers,
             trips=[trip_json(t) for t in trips],
+            promises=[promise_json(p) for p in Promise.query.filter_by(family_id=fam.id, status="promised")
+                      .order_by(Promise.due_on, Promise.id).all()],
         )
 
     def trip_json(t):
@@ -412,7 +454,7 @@ def register_routes(app):
 
         km = clamp_num(data.get("distance_km"), 0, 2000)
         minutes = clamp_num(data.get("minutes"), 0, 24 * 60)
-        extra_keys = [k for k in (data.get("extras") or []) if k in EXTRAS]
+        extra_keys = [k for k in (data.get("extras") or [])[:100] if k in EXTRAS]
         ratings = data.get("ratings") or {}
         stars = {}
         tags = {}
@@ -475,6 +517,33 @@ def register_routes(app):
         db.session.commit()
         return jsonify(balance=kid_balance(kid.id), entry_id=entry.id)
 
+    # ------------------------------------------------------------ promises (signed on a receipt)
+    def get_promise(me, promise_id):
+        p = db.session.get(Promise, promise_id)
+        if not p or p.family_id != me.family_id or p.status != "promised":
+            abort(404)
+        return p
+
+    @app.post("/api/promises/<int:promise_id>/done")
+    @login_required
+    def promise_done(me, promise_id):
+        p = get_promise(me, promise_id)
+        entry = LedgerEntry(family_id=me.family_id, kid_id=p.kid_id, credits=-p.credits, kind="payment",
+                            label=p.label + " 🤝", emoji=p.emoji, parent_id=me.id)
+        db.session.add(entry)
+        db.session.flush()
+        p.status, p.resolved_at, p.ledger_entry_id = "done", utcnow(), entry.id
+        db.session.commit()
+        return jsonify(balance=kid_balance(p.kid_id))
+
+    @app.post("/api/promises/<int:promise_id>/drop")
+    @login_required
+    def promise_drop(me, promise_id):
+        p = get_promise(me, promise_id)
+        p.status, p.resolved_at = "dropped", utcnow()
+        db.session.commit()
+        return jsonify(ok=True)
+
     @app.delete("/api/ledger/<int:entry_id>")
     @login_required
     def delete_entry(me, entry_id):
@@ -498,10 +567,15 @@ def register_routes(app):
         trip = pax.trip
         fam = db.session.get(Family, trip.family_id)
         tasks = (Task.query.filter_by(family_id=fam.id, active=True).order_by(Task.credits).all())
+        promises = (Promise.query.filter_by(kid_id=pax.kid_id, status="promised")
+                    .order_by(Promise.due_on, Promise.id).all())
         resp = Response(render_template(
             "receipt.html", pax=pax, trip=trip, fam=fam, kid=pax.kid, driver=trip.driver,
             when=local_time(trip.created_at), balance=kid_balance(pax.kid_id), tasks=tasks,
-            thanks=request.args.get("thanks") == "1"))
+            promises=[promise_json(p) for p in promises], due_choices=DUE_CHOICES,
+            can_promise=len(promises) < MAX_OPEN_PROMISES,
+            promised_task_ids={p.task_id for p in promises},
+            thanks=request.args.get("thanks") == "1", signed=request.args.get("signed") == "1"))
         resp.headers["X-Robots-Tag"] = "noindex"
         resp.headers["Referrer-Policy"] = "no-referrer"
         return resp
@@ -516,6 +590,24 @@ def register_routes(app):
             pax.rated_at = utcnow()
             db.session.commit()
         return redirect(url_for("receipt", token=token, thanks=1))
+
+    @app.post("/r/<token>/promise")
+    def make_promise(token):
+        pax = get_passenger(token)
+        task = db.session.get(Task, int(clamp_num(request.form.get("task_id"), 0, 10**9)))
+        open_promises = Promise.query.filter_by(kid_id=pax.kid_id, status="promised").all()
+        if (not task or task.family_id != pax.trip.family_id or not task.active
+                or len(open_promises) >= MAX_OPEN_PROMISES
+                or any(p.task_id == task.id for p in open_promises)):
+            return redirect(url_for("receipt", token=token) + "#promise")
+        sig = request.form.get("signature") or ""
+        if not sig.startswith("data:image/png;base64,") or len(sig) > SIGNATURE_MAX:
+            sig = None
+        db.session.add(Promise(family_id=pax.trip.family_id, kid_id=pax.kid_id, passenger_id=pax.id,
+                               task_id=task.id, label=task.name, emoji=task.emoji, credits=task.credits,
+                               due_on=due_date(request.form.get("due")), signature=sig))
+        db.session.commit()
+        return redirect(url_for("receipt", token=token, signed=1) + "#promises")
 
     @app.get("/r/<token>/qr.svg")
     def receipt_qr(token):

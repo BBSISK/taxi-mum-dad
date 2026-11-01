@@ -108,3 +108,53 @@ def test_phone_normalising():
     assert normalise_phone("+353 87 1234567") == "353871234567"
     assert normalise_phone("0044 7700 900123") == "447700900123"
     assert normalise_phone("") is None
+
+
+SIG = "data:image/png;base64,iVBORw0KGgo="
+
+
+def test_kid_promises_from_receipt_and_parent_confirms(app, mum):
+    k = add_kid(mum, "Keelah")
+    pax = mum.post("/api/trips", json={"kid_ids": [k], "distance_km": 20, "minutes": 30}).get_json()["trip"]["passengers"][0]  # 19
+    dishes = next(t for t in state(mum)["tasks"] if t["name"] == "Do the dishes")
+    kid = app.test_client()  # no login
+    r = kid.post(f"/r/{pax['token']}/promise", data={"task_id": dishes["id"], "due": "weekend", "signature": SIG})
+    assert r.status_code == 302 and "signed=1" in r.location
+    kid.post(f"/r/{pax['token']}/promise", data={"task_id": dishes["id"], "due": "today"})  # duplicate ignored
+    page = kid.get(f"/r/{pax['token']}?signed=1").get_data(as_text=True)
+    assert "CONTRACT SIGNED" in page and "Do the dishes" in page and "✓ promised" in page
+
+    promises = state(mum)["promises"]
+    assert len(promises) == 1 and promises[0]["signature"] == SIG and promises[0]["overdue"] is False
+    assert state(mum)["kids"][0]["balance"] == 19  # nothing off until a parent confirms
+    assert mum.post(f"/api/promises/{promises[0]['id']}/done").get_json()["balance"] == 14
+    assert state(mum)["promises"] == []
+    assert mum.post(f"/api/promises/{promises[0]['id']}/done").status_code == 404  # can't double-count
+
+
+def test_promise_drop_and_limits(app, mum):
+    k = add_kid(mum, "Sam")
+    pax = mum.post("/api/trips", json={"kid_ids": [k], "distance_km": 50, "minutes": 60}).get_json()["trip"]["passengers"][0]
+    kid = app.test_client()
+    for t in state(mum)["tasks"][:12]:
+        kid.post(f"/r/{pax['token']}/promise", data={"task_id": t["id"], "due": "tomorrow", "signature": "javascript:alert(1)"})
+    promises = state(mum)["promises"]
+    assert len(promises) == 8  # capped
+    assert all(p["signature"] == "" for p in promises)  # junk signatures rejected
+    assert mum.post(f"/api/promises/{promises[0]['id']}/drop").status_code == 200
+    assert len(state(mum)["promises"]) == 7 and state(mum)["kids"][0]["balance"] > 0
+    other = app.test_client(); other.post("/api/family", json={"parent_name": "Stranger"})
+    assert other.post(f"/api/promises/{promises[1]['id']}/done").status_code == 404
+
+
+def test_live_surcharges_count_and_cap(mum):
+    k = add_kid(mum, "Keelah")
+    # 3 flag + 0 + 0 + guest 3x2 + directions 2 + backseat capped at 10 x 3 = 41
+    extras = ["guest", "guest", "directions"] + ["backseat"] * 15
+    trip = mum.post("/api/trips", json={"kid_ids": [k], "distance_km": 0, "minutes": 0, "extras": extras}).get_json()["trip"]
+    assert trip["total_fare"] == 41
+    page = mum.get(f"/r/{trip['passengers'][0]['token']}").get_data(as_text=True)
+    assert "Surprise extra passenger ×2" in page and "×10" in page
+    assert "Know a parent" in page and "og.png" in page
+    live = [e for e in state(mum)["extras"] if e.get("live")]
+    assert len(live) == 5

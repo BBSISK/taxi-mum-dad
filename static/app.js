@@ -86,8 +86,44 @@ function emojiPicker(group, list, current) {
     `<button type="button" class="${picks[group] === e ? 'on' : ''}" data-act="pick" data-group="${group}" data-val="${esc(e)}" aria-label="${esc(e)}">${e}</button>`).join('')}</div>`;
 }
 
-function header(title, sub = '', back = null) {
-  return `<header class="top"><h1>${back ? `<button class="back" data-act="go" data-to="${back}" aria-label="Back">←</button>` : ''}${title}</h1>
+/* ------------------------------------------------------------------ install (PWA) */
+let installPrompt = null;   // Chrome/Edge/Android hand us this event; Safari never does
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; });
+window.addEventListener('appinstalled', () => { installPrompt = null; toast('🚕 Installed! Look for it on your home screen'); render(); });
+const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const inAppBrowser = () => /FBAN|FBAV|Instagram|WhatsApp|Line\/|wv\)/i.test(navigator.userAgent);
+const installBtn = (cls = 'install') => isInstalled() ? '' : `<button class="${cls}" data-act="install">📲 Install app</button>`;
+
+async function installApp() {
+  if (installPrompt) {
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    installPrompt = null;
+    if (outcome !== 'accepted') toast('No bother - the button is here if you change your mind');
+    return;
+  }
+  const step = (n, t) => `<li style="display:flex;gap:10px;align-items:center;text-align:left;margin:10px 0"><b style="font-family:var(--display);font-size:22px">${n}</b><span>${t}</span></li>`;
+  let steps;
+  if (inAppBrowser()) {
+    steps = step(1, 'This is WhatsApp\'s built-in browser, which can\'t install apps.') +
+            step(2, `Tap <b>⋮</b> or <b>Share</b> and choose <b>Open in ${isIOS() ? 'Safari' : 'Chrome'}</b>.`) +
+            step(3, 'Then tap <b>📲 Install app</b> again.');
+  } else if (isIOS()) {
+    steps = step(1, 'In Safari, tap the <b>Share</b> button (the square with an arrow pointing up).') +
+            step(2, 'Scroll down and tap <b>Add to Home Screen</b> ➕.') +
+            step(3, 'Tap <b>Add</b>. The taxi is now on your home screen 🚕');
+  } else {
+    steps = step(1, 'Open your browser menu <b>⋮</b>.') +
+            step(2, 'Tap <b>Install app</b> or <b>Add to Home screen</b>.') +
+            step(3, 'Tap <b>Install</b>. Done 🚕');
+  }
+  modal(`<h2 style="margin-top:0">📲 Put the taxi on your home screen</h2><ol style="list-style:none;padding:0;margin:0">${steps}</ol>
+    <p class="small muted">It opens full-screen like a normal app, and you'll stay signed in.</p>`);
+}
+
+function header(title, sub = '', back = null, extra = '') {
+  return `<header class="top">${extra}<h1>${back ? `<button class="back" data-act="go" data-to="${back}" aria-label="Back">←</button>` : ''}${title}</h1>
     ${sub ? `<div class="sub">${sub}</div>` : '<div style="height:8px"></div>'}<div class="checker"></div></header>`;
 }
 
@@ -96,12 +132,38 @@ function nav(active) {
   return `<nav class="bottom"><div class="wrap">${b('home', '🏠', 'Home')}${b('start', '🚕', 'Start trip', 'go')}${b('settings', '⚙️', 'Settings')}</div></nav>`;
 }
 
+const SHARE_TEXT = () => `🚕 Found a brilliant app: Taxi of Mum & Dad. Every lift goes on the kids' tab and they pay it off with chores (dishes, granny visits, fresh air…). Free for parents 👉 ${location.origin}/?ref=share`;
 const val = id => ($('#' + id)?.value || '').trim();
 
 /* ------------------------------------------------------------------ fare maths (mirrors server) */
+const MAX_PER_EXTRA = 10;
+function extrasTotal(keys, list = S?.extras || []) {
+  const counts = {};
+  return keys.reduce((a, k) => {
+    const e = list.find(x => x.key === k);
+    counts[k] = (counts[k] || 0) + 1;
+    return a + (e && counts[k] <= MAX_PER_EXTRA ? e.credits : 0);
+  }, 0);
+}
+const countOf = (keys, k) => keys.filter(x => x === k).length;
 function fareNow(rates, km, minutes, extraKeys = []) {
-  const extras = (S?.extras || []).filter(e => extraKeys.includes(e.key)).reduce((a, e) => a + e.credits, 0);
-  return rates.flag_fall + km * rates.per_km + minutes * rates.per_min + extras;
+  return rates.flag_fall + km * rates.per_km + minutes * rates.per_min + extrasTotal(extraKeys);
+}
+
+function promisesCard(list, showKid = true) {
+  if (!list.length) return '';
+  return `<h2>🤝 Promises <span class="small muted">(${list.length})</span></h2>
+  <div class="card"><ul class="list">${list.map(p => `
+    <li>
+      <span style="font-size:24px">${esc(p.emoji)}</span>
+      <span class="grow"><b class="ellipsis" style="display:block">${showKid ? esc(p.kid_emoji + ' ' + p.kid) + ': ' : ''}${esc(p.label)}</b>
+        <span class="due ${p.overdue ? 'late' : ''}">${esc(p.due.toUpperCase())}</span>
+        ${p.signature ? `<img class="sig" src="${esc(p.signature)}" alt="${esc(p.kid)}'s signature">` : ''}
+        <span class="amt minus small">−${p.credits}</span></span>
+      <button class="btn slim green" data-act="promiseDone" data-id="${p.id}" data-kid="${p.kid_id}" aria-label="Done">✅</button>
+      <button class="link" data-act="promiseDrop" data-id="${p.id}" aria-label="Let them off">✕</button>
+    </li>`).join('')}</ul>
+    <p class="small muted" style="margin:6px 0 0">Signed on their receipt. Tap ✅ once it's actually done.</p></div>`;
 }
 
 /* ------------------------------------------------------------------ views */
@@ -115,6 +177,7 @@ const VIEWS = {
       <div class="sign">TAXI</div>
       <h1>Taxi of Mum &amp; Dad</h1>
       <p class="muted">Run the meter on every lift. Send a cheeky receipt.<br>Let them pay it off with jobs, granny visits and fresh air.</p>
+      ${installBtn('btn white slim')}
     </section>
     ${code ? '' : `
     <div class="card">
@@ -147,10 +210,12 @@ const VIEWS = {
     const kids = S.kids;
     const drivers = [...S.drivers];
     const best = drivers.filter(d => d.driver_stars).sort((a, b) => b.driver_stars - a.driver_stars)[0];
-    return header(`🚕 ${esc(S.family.name)}`, `On duty: ${esc(S.me.emoji)} ${esc(S.me.name)}`) + `
+    return header(`🚕 ${esc(S.family.name)}`, `On duty: ${esc(S.me.emoji)} ${esc(S.me.name)}`, null, installBtn()) + `
     ${meter ? `<button class="btn big-go resume" data-act="go" data-to="meter"><span class="lamp">⏱️</span> METER RUNNING - TAP</button>`
       : draft ? `<button class="btn big-go resume" data-act="go" data-to="end"><span class="lamp">🧾</span> FINISH RECEIPT</button>`
       : `<button class="btn big-go" data-act="go" data-to="start"><span class="lamp">🚦</span> START THE METER</button>`}
+
+    ${promisesCard(S.promises || [])}
 
     <h2>Passengers &amp; their tabs</h2>
     ${kids.length ? `<div class="kids">${kids.map(k => `
@@ -205,23 +270,34 @@ const VIEWS = {
   meter() {
     const m = LS.get('taxi.meter');
     if (!m) { setTimeout(() => go('home')); return ''; }
+    m.extras = m.extras || []; m.live = m.live || [];
     return `
-    <div style="height:calc(14px + env(safe-area-inset-top))"></div>
-    <div class="roofsign"><span>HIRED</span></div>
-    <div class="meter">
-      <div class="label">FARE</div>
-      <div class="fare" id="m-fare">0.0</div>
-      <div class="cur">${esc(m.rates.currency)}</div>
-      <div class="stats">
-        <div><span class="label">TIME</span><b id="m-time">0:00</b></div>
-        <div><span class="label">KM</span><b id="m-km">0.0</b></div>
+    <section class="drive">
+      <div class="drive-top">
+        <span class="roof">HIRED</span>
+        <span class="who">${m.kids.map(k => esc(k.emoji)).join('')}${m.note ? ' → ' + esc(m.note) : ''}</span>
+        <span class="gps" id="m-gps">📡</span>
       </div>
-      <div class="gps" id="m-gps">📡 Finding GPS…</div>
-    </div>
-    <p class="center" style="font-size:22px;margin:16px 0">${m.kids.map(k => esc(k.emoji) + ' ' + esc(k.name)).join(' &nbsp; ')}${m.note ? `<br><span class="small muted">→ ${esc(m.note)}</span>` : ''}</p>
-    <button class="btn dark big-go" data-act="stopMeter">🛑 STOP &amp; PRINT</button>
-    <p class="small muted center">Keep this screen open while you drive (it stays awake). Phones pause GPS when locked, so you can fix the km at the end.</p>
-    <p class="center"><button class="link" data-act="cancelMeter">Cancel this trip</button></p>`;
+      <div class="meter">
+        <div class="fare-wrap"><div class="fare" id="m-fare">0.0</div><span class="bump" id="m-bump"></span></div>
+        <div class="cur">${esc(m.rates.currency)}</div>
+        <div class="stats">
+          <div><span class="label">TIME</span><b id="m-time">0:00</b></div>
+          <div><span class="label">KM</span><b id="m-km">0.0</b></div>
+          <div><span class="label">EXTRAS</span><b id="m-extras">+0</b></div>
+        </div>
+      </div>
+      ${m.live.length ? `<div class="live-grid">${m.live.map(e => `
+        <button class="live" data-act="liveCharge" data-key="${e.key}" aria-label="${esc(e.short)}, plus ${e.credits}">
+          <span class="e">${esc(e.emoji)}</span><span class="t">${esc(e.short)}</span><span class="c">+${e.credits}</span>
+          <span class="n" id="n-${e.key}">${countOf(m.extras, e.key) || ''}</span>
+        </button>`).join('')}
+        <button class="live undo" data-act="liveUndo" aria-label="Undo last charge"><span class="e">↩️</span><span class="t">Undo</span></button>
+      </div>` : ''}
+      <button class="btn dark stop" data-act="stopMeter">🛑 STOP &amp; PRINT</button>
+      <p class="small muted center tip">Eyes on the road 👀 Let the front-seat passenger tap the charges (they'll love billing their sibling).</p>
+      <p class="center" style="margin:0"><button class="link" data-act="cancelMeter">Cancel trip</button></p>
+    </section>`;
   },
 
   end() {
@@ -238,7 +314,7 @@ const VIEWS = {
 
     <h2>Surcharges 😈</h2>
     <div class="chips">${S.extras.map(e =>
-      `<button class="chip ${d.extras.includes(e.key) ? 'on' : ''}" data-act="toggleExtra" data-key="${e.key}">${esc(e.label)} +${e.credits}</button>`).join('')}</div>
+      { const n = countOf(d.extras, e.key); return `<button class="chip ${n ? 'on' : ''}" data-act="toggleExtra" data-key="${e.key}">${esc(e.label)} +${e.credits}${n > 1 ? ` <b>×${n}</b>` : ''}</button>`; }).join('')}</div>
 
     <h2>Rate your passenger${n > 1 ? 's' : ''}</h2>
     <p class="small muted" style="margin-top:-4px">5-star passengers get ${Math.round(S.five_star_discount * 100)}% off. Be fair 😇</p>
@@ -291,6 +367,7 @@ const VIEWS = {
       <div class="muted">${esc(cur())} ${k.balance > 0 ? 'on the tab' : k.balance < 0 ? '(in credit!)' : '- all square 🎉'}</div>
       ${k.passenger_stars ? `<div style="margin-top:6px">Passenger rating ${stars(k.passenger_stars)} <span class="small muted">(${k.passenger_stars})</span></div>` : ''}
     </div>
+    ${promisesCard((S.promises || []).filter(p => p.kid_id === k.id), false)}
     <h2>Pay it off 💪</h2>
     <p class="small muted" style="margin-top:-4px">Tap a job once it's actually done.</p>
     <div class="jobs">${S.tasks.map(t => `
@@ -325,6 +402,17 @@ const VIEWS = {
     const f = S.family;
     const example = Math.round(fareNow(f, 8, 15));
     return header('⚙️ Settings', esc(f.name)) + `
+    ${isInstalled() ? '' : `<div class="card">
+      <h2 style="margin-top:0">📲 Install the app</h2>
+      <p class="small muted">One tap from your home screen, full-screen, no browser bars. Do it on both parents' phones.</p>
+      <button class="btn" data-act="install">📲 Install Taxi of Mum &amp; Dad</button>
+    </div>`}
+    <div class="card">
+      <h2 style="margin-top:0">🚕 Spread the fun</h2>
+      <p class="small muted">Know another parent running a free taxi service? Pass it on.</p>
+      <a class="btn green" target="_blank" rel="noopener" href="${esc('https://wa.me/?text=' + encodeURIComponent(SHARE_TEXT()))}">💬 Share with other parents</a>
+      ${navigator.share ? '<button class="btn white" style="margin-top:10px" data-act="shareApp">📤 More ways to share</button>' : ''}
+    </div>
     <div class="card">
       <h2 style="margin-top:0">🤝 Your co-driver</h2>
       <p class="small muted">Send this to Mum / Dad so you share one set of tabs.</p>
@@ -387,7 +475,8 @@ const VIEWS = {
 function waLink(trip, p) {
   const text = `🚕 *Taxi of Mum & Dad* receipt for ${p.name}\n` +
     `Ride with ${trip.driver}${trip.note ? ' (' + trip.note + ')' : ''}: *${p.fare} ${cur()}*\n` +
-    `See your tab & rate your driver 👉 ${p.receipt_url}`;
+    `See your tab & rate your driver 👉 ${p.receipt_url}\n\n` +
+    `🚕 _Powered by Taxi of Mum & Dad - parents, turn every lift into chores (free):_\n${location.origin}/?ref=wa`;
   return `https://wa.me/${p.phone || ''}?text=${encodeURIComponent(text)}`;
 }
 
@@ -446,27 +535,30 @@ async function keepAwake() {
 function letSleep() { try { wakeLock?.release(); } catch { /* ignore */ } wakeLock = null; }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && LS.get('taxi.meter')) keepAwake(); });
 
+function drawMeter() {
+  const m = LS.get('taxi.meter');
+  if (!m) return;
+  const secs = (Date.now() - m.startedAt) / 1000;
+  const km = m.distM / 1000;
+  const extra = extrasTotal(m.extras || [], m.live || []);
+  const fare = m.rates.flag_fall + km * m.rates.per_km + (secs / 60) * m.rates.per_min + extra;
+  const set = (id, v) => { const el = $('#' + id); if (el) el.textContent = v; };
+  set('m-fare', fare.toFixed(1));
+  set('m-time', mmss(secs));
+  set('m-km', km.toFixed(1));
+  set('m-extras', '+' + extra);
+  const g = $('#m-gps');
+  if (g) {
+    const map = { ok: ['ok', '📡 GPS'], weak: ['', '📡 weak'], denied: ['bad', '📵 no GPS'], waiting: ['', '📡 …'] };
+    const [cls, txt] = map[m.gps] || map.waiting;
+    g.className = 'gps ' + cls; g.textContent = txt;
+  }
+}
+
 function startTick() {
   startGps(); keepAwake();
-  const draw = () => {
-    const m = LS.get('taxi.meter');
-    if (!m) return;
-    const secs = (Date.now() - m.startedAt) / 1000;
-    const km = m.distM / 1000;
-    const fare = m.rates.flag_fall + km * m.rates.per_km + (secs / 60) * m.rates.per_min;
-    const set = (id, v) => { const el = $('#' + id); if (el) el.textContent = v; };
-    set('m-fare', fare.toFixed(1));
-    set('m-time', mmss(secs));
-    set('m-km', km.toFixed(1));
-    const g = $('#m-gps');
-    if (g) {
-      const map = { ok: ['ok', '📡 GPS locked'], weak: ['', '📡 Weak GPS signal…'], denied: ['bad', '📵 No location access - time only'], waiting: ['', '📡 Finding GPS…'] };
-      const [cls, txt] = map[m.gps] || map.waiting;
-      g.className = 'gps ' + cls; g.textContent = txt;
-    }
-  };
-  draw();
-  tickTimer = setInterval(draw, 1000);
+  drawMeter();
+  tickTimer = setInterval(drawMeter, 1000);
 }
 function stopTick() { clearInterval(tickTimer); tickTimer = null; }
 
@@ -499,6 +591,8 @@ const ACTS = {
   go: el => go(el.dataset.to),
   reload: () => location.reload(),
   closeModal,
+  install: installApp,
+  shareApp() { navigator.share({ title: 'Taxi of Mum & Dad', text: SHARE_TEXT() }).catch(() => {}); },
   pick(el) {
     picks[el.dataset.group] = el.dataset.val;
     el.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el));
@@ -536,6 +630,7 @@ const ACTS = {
       kidIds: view.sel, note: val('s-note'), startedAt: Date.now(), distM: 0, last: null, gps: 'waiting',
       kids: view.sel.map(id => { const k = kidById(id); return { id, name: k.name, emoji: k.emoji }; }),
       rates: { flag_fall: S.family.flag_fall, per_km: S.family.per_km, per_min: S.family.per_min, currency: S.family.currency },
+      extras: [], live: S.extras.filter(e => e.live).slice(0, 5),
     });
     go('meter');
   },
@@ -550,7 +645,8 @@ const ACTS = {
     stopGps(); letSleep();
     LS.set('taxi.end', {
       kidIds: m.kidIds, note: m.note, km: +(m.distM / 1000).toFixed(1),
-      minutes: Math.max(1, Math.round((Date.now() - m.startedAt) / 60000)), extras: autoExtras(new Date(m.startedAt)), ratings: {},
+      minutes: Math.max(1, Math.round((Date.now() - m.startedAt) / 60000)),
+      extras: [...(m.extras || []), ...autoExtras(new Date(m.startedAt))], ratings: {},
     });
     LS.del('taxi.meter');
     go('end');
@@ -561,6 +657,25 @@ const ACTS = {
   },
 
   toggleExtra(el) { editDraft(d => { const k = el.dataset.key; d.extras = d.extras.includes(k) ? d.extras.filter(x => x !== k) : [...d.extras, k]; }); },
+  liveCharge(el) {
+    const m = LS.get('taxi.meter'); if (!m) return;
+    m.extras = m.extras || [];
+    const k = el.dataset.key, e = m.live.find(x => x.key === k);
+    if (!e) return;
+    if (countOf(m.extras, k) >= MAX_PER_EXTRA) { toast(`That's the max for ${e.short} 😅`); return; }
+    m.extras.push(k); LS.set('taxi.meter', m);
+    try { navigator.vibrate?.(40); } catch { /* not supported */ }
+    $('#n-' + k).textContent = countOf(m.extras, k);
+    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+    const b = $('#m-bump'); b.textContent = '+' + e.credits; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go');
+    drawMeter();
+  },
+  liveUndo() {
+    const m = LS.get('taxi.meter'); if (!m || !m.extras?.length) return;
+    const k = m.extras.pop(); LS.set('taxi.meter', m);
+    const n = $('#n-' + k); if (n) n.textContent = countOf(m.extras, k) || '';
+    toast('↩️ Charge removed'); drawMeter();
+  },
   rate(el) { editDraft(d => { const id = el.dataset.id; d.ratings[id] = d.ratings[id] || { stars: 0, tags: [] }; const v = +el.dataset.val; d.ratings[id].stars = d.ratings[id].stars === v ? 0 : v; }); },
   tag(el) { editDraft(d => { const id = el.dataset.id, t = el.dataset.val; d.ratings[id] = d.ratings[id] || { stars: 0, tags: [] }; const tags = d.ratings[id].tags; d.ratings[id].tags = tags.includes(t) ? tags.filter(x => x !== t) : [...tags, t]; }); },
   async issue(el) {
@@ -585,6 +700,20 @@ const ACTS = {
   },
 
   kid: el => go('kid', { id: +el.dataset.id }),
+  async promiseDone(el) {
+    const kidId = +el.dataset.kid;
+    try {
+      await api(`/api/promises/${el.dataset.id}/done`, { method: 'POST' });
+      const y = window.scrollY; await refresh(); render(); window.scrollTo(0, y);
+      const k = kidById(kidId);
+      confetti(k && k.balance <= 0 ? ['🎉', '🏆', '⭐'] : ['🤝', '⭐', '💪']);
+      toast(k && k.balance <= 0 ? `🎉 Promise kept - ${k.name} is all square!` : '🤝 Promise kept - credits knocked off');
+    } catch (e) { oops(e); }
+  },
+  async promiseDrop(el) {
+    if (!confirm('Let them off this one? No credits come off.')) return;
+    try { await api(`/api/promises/${el.dataset.id}/drop`, { method: 'POST' }); const y = window.scrollY; await refresh(); render(); window.scrollTo(0, y); } catch (e) { oops(e); }
+  },
   async pay(el) {
     const kidId = +el.dataset.kid, task = S.tasks.find(t => t.id === +el.dataset.task);
     try { const res = await api('/api/payments', { method: 'POST', body: { kid_id: kidId, task_id: task.id } }); await afterPayment(kidId, res, `${task.emoji} ${task.name}`); } catch (e) { oops(e); }

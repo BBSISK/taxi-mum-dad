@@ -9,18 +9,24 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Mum&amp;Dad Taxi">
 <title>Taxi of Mum &amp; Dad</title>
+<meta property="og:type" content="website">
+<meta property="og:title" content="🚕 Taxi of Mum &amp; Dad">
+<meta property="og:description" content="Every lift goes on the kids' tab. They pay it off with chores, granny visits and fresh air. Free for parents.">
+<meta property="og:image" content="{{ url_for('static', filename='og.png', _external=True) }}">
+<meta property="og:url" content="{{ url_for('index', _external=True) }}">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=4">
 </head>
 <body>
 <main id="app" aria-live="polite"><div class="boot">🚕</div></main>
 <div id="toast" role="status"></div>
 <div id="modal" class="modal" hidden></div>
-<script src="{{ url_for('static', filename='app.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=4"></script>
 </body>
 </html>
