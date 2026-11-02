@@ -304,3 +304,15 @@ def test_friendly_not_found_pages(app):
     r = c.get("/nowhere")
     assert r.status_code == 404 and "Wrong turn" in r.get_data(as_text=True)
     assert c.get("/api/nothing").get_json() == {"error": "not_found"}
+
+
+def test_old_default_job_names_are_renamed(app):
+    from app import rename_old_defaults
+    from models import Family, Task
+    with app.app_context():
+        f = Family(name="Old")
+        db.session.add(f); db.session.flush()
+        db.session.add(Task(family_id=f.id, name="Visit Granny / Grandad in the home", emoji="👵", credits=25))
+        db.session.commit()
+        rename_old_defaults()
+        assert Task.query.filter_by(family_id=f.id).one().name == "Visit Granny / Grandad and make them smile"

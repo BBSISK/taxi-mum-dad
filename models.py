@@ -54,7 +54,7 @@ DEFAULT_TASKS = [
     ("🚗", "Wash the car", 15),
     ("🍳", "Help cook dinner", 8),
     ("🌳", "Outdoor afternoon instead of games", 15),
-    ("👵", "Visit Granny / Grandad in the home", 25),
+    ("👵", "Visit Granny / Grandad and make them smile", 25),
     ("📞", "Ring a relative for a proper chat", 8),
     ("🏡", "Visit a relative", 20),
     ("🐕", "Walk the dog", 6),

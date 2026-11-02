@@ -170,6 +170,20 @@ def avg(values):
 
 
 # ---------------------------------------------------------------- app factory
+RENAMED_DEFAULTS = {  # old default job name -> new one (applied once at start-up, idempotent)
+    "Visit Granny / Grandad in the home": "Visit Granny / Grandad and make them smile",
+}
+
+
+def rename_old_defaults():
+    try:
+        for old, new in RENAMED_DEFAULTS.items():
+            Task.query.filter_by(name=old).update({"name": new}, synchronize_session=False)
+        db.session.commit()
+    except Exception:  # noqa: BLE001 - never block start-up over a cosmetic rename
+        db.session.rollback()
+
+
 def create_app(test_config=None):
     app = Flask(__name__)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -207,6 +221,7 @@ def create_app(test_config=None):
                 dbapi_conn.execute("PRAGMA foreign_keys=ON")
             db.engine.dispose()
         db.create_all()
+        rename_old_defaults()
 
     register_routes(app)
     return app
