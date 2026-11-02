@@ -316,3 +316,17 @@ def test_old_default_job_names_are_renamed(app):
         db.session.commit()
         rename_old_defaults()
         assert Task.query.filter_by(family_id=f.id).one().name == "Visit Granny / Grandad and make them smile"
+
+
+def test_undo_confirmed_promise_reopens_it(app, mum):
+    k = add_kid(mum, "Keelah")
+    pax = mum.post("/api/trips", json={"kid_ids": [k], "distance_km": 20, "minutes": 30}).get_json()["trip"]["passengers"][0]
+    task = state(mum)["tasks"][0]
+    app.test_client().post(f"/r/{pax['token']}/promise", data={"task_id": task["id"], "due": "today"})
+    pid = state(mum)["promises"][0]["id"]
+    mum.post(f"/api/promises/{pid}/done")
+    entry = next(e for e in mum.get(f"/api/kids/{k}/ledger").get_json()["entries"] if e["kind"] == "payment")
+    r = mum.delete(f"/api/ledger/{entry['id']}")
+    assert r.status_code == 200 and r.get_json()["promise_reopened"] is True
+    assert [p["id"] for p in state(mum)["promises"]] == [pid]
+    assert state(mum)["kids"][0]["balance"] == 19

@@ -754,9 +754,13 @@ def register_routes(app):
         entry = db.session.get(LedgerEntry, entry_id)
         if not entry or entry.family_id != me.family_id or entry.kind != "payment":
             abort(404)
+        # Undoing a confirmed promise reopens it (the kid still owes the job) instead of failing on the link.
+        reopened = Promise.query.filter_by(ledger_entry_id=entry.id).first()
+        if reopened:
+            reopened.status, reopened.resolved_at, reopened.ledger_entry_id = "promised", None, None
         db.session.delete(entry)
         db.session.commit()
-        return jsonify(ok=True)
+        return jsonify(ok=True, promise_reopened=bool(reopened))
 
     # ------------------------------------------------------------ public receipt (kid side, no login)
     def get_passenger(token):

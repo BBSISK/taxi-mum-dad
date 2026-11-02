@@ -158,14 +158,16 @@ function promisesCard(list, showKid = true) {
   <div class="card"><ul class="list">${list.map(p => `
     <li>
       <span style="font-size:24px">${esc(p.emoji)}</span>
-      <span class="grow"><b class="ellipsis" style="display:block">${showKid ? esc(p.kid_emoji + ' ' + p.kid) + ': ' : ''}${esc(p.label)}</b>
+      <span class="grow"><b style="display:block">${showKid ? esc(p.kid_emoji + ' ' + p.kid) + ': ' : ''}${esc(p.label)}</b>
         <span class="due ${p.overdue ? 'late' : ''}">${esc(p.due.toUpperCase())}</span>
         ${p.signature ? `<img class="sig" src="${esc(p.signature)}" alt="${esc(p.kid)}'s signature">` : ''}
         <span class="amt minus small">−${p.credits}</span></span>
-      <button class="btn slim green" data-act="promiseDone" data-id="${p.id}" data-kid="${p.kid_id}" aria-label="Done">✅</button>
-      <button class="link" data-act="promiseDrop" data-id="${p.id}" aria-label="Let them off">✕</button>
+      <span class="pbtns">
+        <button class="btn slim green" data-act="promiseDone" data-id="${p.id}" data-kid="${p.kid_id}" title="Job done: take ${p.credits} off ${esc(p.kid)}'s tab">✅ Done</button>
+        <button class="link" data-act="promiseDrop" data-id="${p.id}" title="Cancel this promise. Nothing comes off the tab">Let off</button>
+      </span>
     </li>`).join('')}</ul>
-    <p class="small muted" style="margin:6px 0 0">Signed on their receipt. Tap ✅ once it's actually done.</p></div>`;
+    <p class="small muted" style="margin:6px 0 0">Signed on their receipt. <b>✅ Done</b> takes the credits off once the job is actually done. <b>Let off</b> cancels the promise, and nothing comes off.</p></div>`;
 }
 
 /* ------------------------------------------------------------------ views */
@@ -222,15 +224,15 @@ const VIEWS = {
     ${promisesCard(S.promises || [])}
 
     <h2>Passengers &amp; their tabs</h2>
-    ${kids.length ? `<div class="kids">${kids.map(k => `
-      <button class="card kidcard" data-act="kid" data-id="${k.id}">
-        <div class="face">${esc(k.emoji)}</div>
-        <div class="name">${esc(k.name)}</div>
-        <div class="bal ${k.balance > 0 ? 'owes' : 'clear'}">${k.balance > 0 ? k.balance : (k.balance < 0 ? '+' + (-k.balance) : '0')}</div>
-        <div class="small muted">${k.balance > 0 ? 'owes ' + esc(cur()) : k.balance < 0 ? 'in credit 😇' : 'all square 🎉'}</div>
-        ${k.passenger_stars ? `<div class="small">${stars(k.passenger_stars)}</div>` : ''}
+    ${kids.length ? `<div class="card tabs-list">${kids.map(k => `
+      <button class="tabrow" data-act="kid" data-id="${k.id}">
+        <span class="face">${esc(k.emoji)}</span>
+        <span class="who"><b>${esc(k.name)}</b>${k.passenger_stars ? `<span class="small">${stars(k.passenger_stars)}</span>` : ''}</span>
+        <span class="bal ${k.balance > 0 ? 'owes' : 'clear'}">${k.balance > 0 ? k.balance : k.balance < 0 ? '+' + (-k.balance) : '0'}
+          <small>${k.balance > 0 ? 'owes' : k.balance < 0 ? 'in credit' : 'all square'}</small></span>
+        <span class="chev">›</span>
       </button>`).join('')}
-      <button class="card kidcard addcard" data-act="quickAddKid"><div class="face">➕</div><div class="name">Add passenger</div></button></div>`
+      <button class="tabrow addrow" data-act="quickAddKid"><span class="face">➕</span><span class="who"><b>Add passenger</b></span></button></div>`
       : `<div class="card center"><div style="font-size:44px">🧒👧</div><h2 style="margin:6px 0">Add your first passenger</h2>
           <p class="small muted" style="margin-top:0">Who's always looking for a lift? Just a first name.</p>
           <button class="btn" data-act="quickAddKid">➕ Add a passenger</button></div>`}
@@ -392,7 +394,7 @@ const VIEWS = {
     if (!k) { setTimeout(() => go('home')); return ''; }
     return header(`${esc(k.emoji)} ${esc(k.name)}`, 'Passenger account', 'home') + `
     <div class="card balance-hero">
-      <div class="num ${k.balance > 0 ? 'owes' : 'clear'}" id="k-bal">${k.balance}</div>
+      <div class="num ${k.balance > 0 ? 'owes' : 'clear'}" id="k-bal">${k.balance < 0 ? '+' + (-k.balance) : k.balance}</div>
       <div class="muted">${esc(cur())} ${k.balance > 0 ? 'on the tab' : k.balance < 0 ? '(in credit!)' : '- all square 🎉'}</div>
       ${k.passenger_stars ? `<div style="margin-top:6px">Passenger rating ${stars(k.passenger_stars)} <span class="small muted">(${k.passenger_stars})</span></div>` : ''}
     </div>
@@ -606,9 +608,9 @@ async function loadLedger(kidId) {
     const ul = $('#k-ledger');
     if (!ul) return;
     ul.innerHTML = data.entries.map(e => `<li><span style="font-size:22px">${esc(e.emoji || '•')}</span>
-      <span class="grow"><span class="ellipsis" style="display:block">${esc(e.label)}</span><span class="small muted">${esc(e.when)}</span></span>
+      <span class="grow"><span style="display:block">${esc(e.label)}</span><span class="small muted">${esc(e.when)}${e.kind === 'fare' ? ' · fare' : ' · job done'}</span></span>
       <span class="amt ${e.credits > 0 ? 'plus' : 'minus'}">${e.credits > 0 ? '+' : '−'}${Math.abs(e.credits)}</span>
-      ${e.kind === 'payment' ? `<button class="link" data-act="undoPay" data-id="${e.id}" data-kid="${kidId}" aria-label="Undo">✕</button>` : ''}</li>`).join('')
+      ${e.kind === 'payment' ? `<button class="link undo" data-act="undoPay" data-id="${e.id}" data-kid="${kidId}" data-label="${esc(e.label)}" data-credits="${Math.abs(e.credits)}" title="Ticked by mistake? Puts the ${Math.abs(e.credits)} back on the tab">Undo</button>` : ''}</li>`).join('')
       || '<li class="muted">Nothing yet</li>';
   } catch (e) { oops(e); }
 }
@@ -789,7 +791,12 @@ const ACTS = {
     try { const res = await api('/api/payments', { method: 'POST', body: { kid_id: kidId, label: val('k-label'), credits: +val('k-cr') } }); await afterPayment(kidId, res, `⭐ ${val('k-label')}`); } catch (e) { oops(e); }
   },
   async undoPay(el) {
-    try { await api(`/api/ledger/${el.dataset.id}`, { method: 'DELETE' }); await refresh(); go('kid', { id: +el.dataset.kid }); toast('Removed'); } catch (e) { oops(e); }
+    if (!confirm(`Undo "${el.dataset.label}"?\n\nThis puts ${el.dataset.credits} back on the tab (use it if the job was ticked by mistake).`)) return;
+    try {
+      const r = await api(`/api/ledger/${el.dataset.id}`, { method: 'DELETE' });
+      await refresh(); go('kid', { id: +el.dataset.kid });
+      toast(r.promise_reopened ? '↩️ Undone. The promise is open again' : '↩️ Undone. Back on the tab');
+    } catch (e) { oops(e); }
   },
 
   kidEdit(el) { delete picks.kid; go('kidEdit', { id: el.dataset.id ? +el.dataset.id : null }); },
