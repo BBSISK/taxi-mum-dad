@@ -12,7 +12,7 @@ const LS = {
 const PARENT_EMOJI = ['👩', '👨', '🧔', '👱‍♀️', '👵', '👴', '🧑', '🦸'];
 const KID_EMOJI = ['🧒', '👧', '👦', '🧑', '🦄', '🐯', '⚽', '🎮', '🎨', '🦖', '🐱', '🌟'];
 const JOB_EMOJI = ['⭐', '🧹', '🍽️', '🛏️', '🌳', '👵', '📚', '🐕', '🚲', '🎹', '🧺', '💪'];
-const PLACES = ['🏫 School', '⚽ Training', '🏠 Friend\'s house', '👵 Granny\'s', '🛒 Shops', '🎉 Party', '🎭 Drama', '🏊 Swimming'];
+const PLACES = ['🏫 School', '⚽ Training', '🏠 Friend\'s', '👵 Granny\'s', '🛒 Shops', '🎉 Party'];
 
 let S = LS.get('taxi.state');      // cached server state (instant start, works offline-ish)
 let view = { name: 'boot' };
@@ -229,8 +229,11 @@ const VIEWS = {
         <div class="bal ${k.balance > 0 ? 'owes' : 'clear'}">${k.balance > 0 ? k.balance : (k.balance < 0 ? '+' + (-k.balance) : '0')}</div>
         <div class="small muted">${k.balance > 0 ? 'owes ' + esc(cur()) : k.balance < 0 ? 'in credit 😇' : 'all square 🎉'}</div>
         ${k.passenger_stars ? `<div class="small">${stars(k.passenger_stars)}</div>` : ''}
-      </button>`).join('')}</div>`
-      : `<div class="empty"><p>No passengers yet. Who's always looking for a lift?</p><button class="btn slim" data-act="kidEdit">➕ Add a passenger</button></div>`}
+      </button>`).join('')}
+      <button class="card kidcard addcard" data-act="quickAddKid"><div class="face">➕</div><div class="name">Add passenger</div></button></div>`
+      : `<div class="card center"><div style="font-size:44px">🧒👧</div><h2 style="margin:6px 0">Add your first passenger</h2>
+          <p class="small muted" style="margin-top:0">Who's always looking for a lift? Just a first name.</p>
+          <button class="btn" data-act="quickAddKid">➕ Add a passenger</button></div>`}
 
     <h2>Driver of the month 🏆</h2>
     <div class="league">${drivers.map(d => `
@@ -257,18 +260,40 @@ const VIEWS = {
   },
 
   start() {
-    const sel = view.sel || (view.sel = S.kids.length === 1 ? [S.kids[0].id] : []);
-    return header('🚦 New trip', 'Who\'s in the back?', 'home') + `
-    ${S.kids.length ? `<div class="chips">${S.kids.map(k =>
-      `<button class="chip kid ${sel.includes(k.id) ? 'on' : ''}" data-act="toggleKid" data-id="${k.id}">${esc(k.emoji)} ${esc(k.name)}</button>`).join('')}</div>`
-      : `<div class="empty"><p>Add a passenger first.</p><button class="btn slim" data-act="kidEdit">➕ Add a passenger</button></div>`}
-    <h2>Where to? <span class="small muted">(optional)</span></h2>
-    <input id="s-note" type="text" maxlength="80" placeholder="Football training (no addresses please)" value="${esc(view.note || '')}">
-    <div class="chips" style="margin-top:10px">${PLACES.map(p => `<button class="chip" data-act="place" data-val="${esc(p)}">${esc(p)}</button>`).join('')}</div>
-    <div style="height:20px"></div>
-    <button class="btn big-go" data-act="startMeter" ${sel.length ? '' : 'disabled'}><span class="lamp">🚕</span> GO!</button>
-    <p class="center"><button class="link" data-act="manualTrip" ${sel.length ? '' : 'disabled'}>Already there? Enter the trip by hand</button></p>
-    ` + nav('start');
+    // pre-select the usual suspects: the only kid, or whoever rode last time
+    const lastRide = (S.trips[0]?.passengers || []).map(p => p.kid_id).filter(id => S.kids.some(k => k.id === id));
+    const sel = view.sel || (view.sel = S.kids.length === 1 ? [S.kids[0].id] : lastRide);
+    const names = S.kids.filter(k => sel.includes(k.id)).map(k => k.name);
+    return header('🚦 New trip', '', 'home') + `
+    <h2 class="tight">Who's in the back?</h2>
+    <div class="chips">${S.kids.map(k =>
+      `<button class="chip kid ${sel.includes(k.id) ? 'on' : ''}" data-act="toggleKid" data-id="${k.id}">${esc(k.emoji)} ${esc(k.name)}</button>`).join('')}
+      <button class="chip kid add" data-act="quickAddKid">➕ ${S.kids.length ? 'Add' : 'Add a passenger'}</button></div>
+    ${S.kids.length ? '' : '<p class="small muted">Just a first name, so their receipts have a name on them.</p>'}
+    <h2 class="tight">Where to? <span class="small muted">(optional)</span></h2>
+    <input id="s-note" type="text" maxlength="80" placeholder="e.g. Training (no addresses)" value="${esc(view.note || '')}">
+    <div class="chips scroll">${PLACES.map(p => `<button class="chip" data-act="place" data-val="${esc(p)}">${esc(p)}</button>`).join('')}</div>
+    <div class="gobar">
+      <button class="btn big-go" data-act="startMeter" ${sel.length ? '' : 'disabled'}><span class="lamp">🚕</span> GO!</button>
+      <div class="gohint">${sel.length
+        ? `Driving ${esc(names.join(' & '))} · <button class="link" data-act="manualTrip">already there? enter by hand</button>`
+        : 'Tap who\'s in the back to start 👆'}</div>
+    </div>`;
+  },
+
+  onboard() {
+    return header('👋 Welcome aboard!', 'One quick step and you\'re ready to drive') + `
+    <div class="card onboard">
+      <h2 style="margin-top:0">Who do you drive around?</h2>
+      <p class="small muted" style="margin-top:-4px">Add each passenger. Just a first name and a face. You can add more any time.</p>
+      <div class="row"><input id="ob-name" type="text" maxlength="40" placeholder="e.g. Keelah" autocomplete="off">
+        <button class="btn slim" style="flex:0 0 auto" data-act="onboardAdd">➕ Add</button></div>
+      <div style="height:8px"></div>
+      ${emojiPicker('ob', KID_EMOJI)}
+      ${S.kids.length ? `<div class="chips" style="margin-top:14px">${S.kids.map(k => `<span class="chip kid on">${esc(k.emoji)} ${esc(k.name)}</span>`).join('')}</div>` : ''}
+    </div>
+    <button class="btn big-go" data-act="go" data-to="${S.kids.length ? 'start' : 'home'}" ${S.kids.length ? '' : 'disabled'}><span class="lamp">🚦</span> LET'S DRIVE!</button>
+    <p class="center"><button class="link" data-act="go" data-to="home">Skip for now</button></p>`;
   },
 
   meter() {
@@ -613,7 +638,36 @@ const ACTS = {
   async createFamily() {
     try {
       await api('/api/family', { method: 'POST', body: { family_name: val('w-fam'), parent_name: val('w-name'), emoji: picks.new, ref: ENTRY_REF } });
-      await refresh(); confetti(); go('home');
+      await refresh(); confetti(); delete picks.ob; go('onboard');
+    } catch (e) { oops(e); }
+  },
+  async onboardAdd() {
+    const name = val('ob-name');
+    if (!name) { $('#ob-name').focus(); return; }
+    try {
+      await api('/api/kids', { method: 'POST', body: { name, emoji: picks.ob } });
+      await refresh(); delete picks.ob; go('onboard'); toast(`🎉 ${name} is on the books`);
+      setTimeout(() => $('#ob-name')?.focus(), 50);
+    } catch (e) { oops(e); }
+  },
+  quickAddKid() {
+    if ($('#s-note')) view.note = val('s-note');
+    delete picks.qa;
+    modal(`<h2 style="margin-top:0">➕ New passenger</h2>
+      <input id="qa-name" type="text" maxlength="40" placeholder="First name" autocomplete="off">
+      <div style="height:10px"></div>${emojiPicker('qa', KID_EMOJI)}
+      <div style="height:12px"></div><button class="btn" data-act="quickAddSave">Add passenger</button>
+      <p class="small muted" style="margin-bottom:0">Add a WhatsApp number later in Settings if you like.</p>`);
+    setTimeout(() => $('#qa-name')?.focus(), 50);
+  },
+  async quickAddSave() {
+    const name = val('qa-name');
+    if (!name) { $('#qa-name').focus(); return; }
+    try {
+      const { id } = await api('/api/kids', { method: 'POST', body: { name, emoji: picks.qa } });
+      closeModal(); await refresh();
+      if (view.name === 'start') view.sel = [...(view.sel || []), id];  // new passenger is riding now
+      render(); toast(`🎉 ${name} is on the books`);
     } catch (e) { oops(e); }
   },
   async joinFamily() {
@@ -813,6 +867,11 @@ document.addEventListener('click', e => {
 });
 
 // live edits on the end-of-trip screen and job values
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (e.target.id === 'qa-name') { e.preventDefault(); ACTS.quickAddSave(); }
+  if (e.target.id === 'ob-name') { e.preventDefault(); ACTS.onboardAdd(); }
+});
 document.addEventListener('input', e => {
   const key = e.target.dataset.input;
   if (key && view.name === 'end') {

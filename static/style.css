@@ -226,3 +226,21 @@ body:has(.drive) #toast { bottom: calc(150px + env(safe-area-inset-bottom)); }
 @media (min-height: 780px) { .live { min-height: 104px; } .live .e { font-size: 38px; } .live .t { font-size: 14px; } }
 
 .muted a, .small a { color: inherit; }
+
+/* start screen: GO always in reach, no confusing bottom nav */
+h2.tight { margin: 14px 0 8px; }
+.chips.scroll { flex-wrap: nowrap; overflow-x: auto; margin: 10px -16px 0; padding: 2px 16px 8px; scrollbar-width: none; }
+.chips.scroll::-webkit-scrollbar { display: none; }
+.chips.scroll .chip { flex: 0 0 auto; }
+.chip.add { border-style: dashed; background: #fff8e6; }
+.gobar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--paper); border-top: 3px solid var(--ink);
+  padding: 12px 16px calc(10px + env(safe-area-inset-bottom)); }
+.gobar > * { max-width: 520px; margin-left: auto; margin-right: auto; }
+.gobar .big-go { min-height: 80px; }
+.gohint { text-align: center; font-size: 13px; color: var(--muted); margin-top: 6px; }
+.gohint .link { padding: 0; font-size: 13px; }
+body:has(.gobar) { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+.kidcard.addcard { border-style: dashed; background: #fff8e6; box-shadow: none; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+body:has(.gobar) #toast { bottom: calc(165px + env(safe-area-inset-bottom)); }
+body:has(.onboard) #toast { bottom: auto; top: calc(80px + env(safe-area-inset-top)); transform: translate(-50%, -20px); }
+body:has(.onboard) #toast.show { transform: translate(-50%, 0); }

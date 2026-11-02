@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex"><title>🚕 Not found - Taxi of Mum &amp; Dad</title>
+<link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+<style>
+  @font-face { font-family:"Bungee"; src:url("{{ url_for('static', filename='fonts/bungee-400.woff2') }}") format("woff2"); font-display:swap; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:#fff8e6; color:#141414;
+         font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; padding:24px 16px; box-sizing:border-box; }
+  .card { max-width:380px; text-align:center; background:#fff; border:3px solid #141414; border-radius:18px; padding:24px 20px; box-shadow:0 5px 0 #141414; }
+  .sign { display:inline-block; font-family:"Bungee",Impact,sans-serif; font-size:28px; letter-spacing:3px; background:#ffc20e;
+          border:4px solid #141414; border-radius:12px 12px 4px 4px; padding:2px 16px; }
+  h1 { font-size:22px; margin:16px 0 8px; }
+  a.btn { display:block; margin-top:18px; background:#ffc20e; color:#141414; font-weight:800; text-decoration:none;
+          border:3px solid #141414; border-radius:12px; padding:12px; box-shadow:0 4px 0 #141414; }
+  .small { font-size:13px; color:#6d6658; }
+</style></head>
+<body><div class="card">
+  <div class="sign">TAXI</div>
+  {% if receipt %}
+    <h1>🧾 This receipt isn't on the meter</h1>
+    <p>It might be an old test receipt from before we moved to our new EU home, or Mum or Dad may have deleted that trip.</p>
+    <p class="small">Ask them to send a fresh one. Your tab is safe in their app.</p>
+  {% else %}
+    <h1>🗺️ Wrong turn!</h1>
+    <p>We couldn't find that page. Even the best taxi drivers take a wrong turn now and then.</p>
+  {% endif %}
+  <a class="btn" href="{{ url_for('index') }}">🚕 Go to Taxi of Mum &amp; Dad</a>
+</div></body></html>

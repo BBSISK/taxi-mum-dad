@@ -295,3 +295,12 @@ def test_old_host_redirects(monkeypatch):
     r = old.get("/r/abc?x=1")
     assert r.status_code == 301 and r.location == "https://taxi-mum-dad-eu.onrender.com/r/abc?x=1"
     assert old.get("/healthz").status_code == 200
+
+
+def test_friendly_not_found_pages(app):
+    c = app.test_client()
+    r = c.get("/r/old-test-receipt")
+    assert r.status_code == 404 and "isn't on the meter" in r.get_data(as_text=True)
+    r = c.get("/nowhere")
+    assert r.status_code == 404 and "Wrong turn" in r.get_data(as_text=True)
+    assert c.get("/api/nothing").get_json() == {"error": "not_found"}

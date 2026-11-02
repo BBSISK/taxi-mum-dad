@@ -302,6 +302,12 @@ def register_routes(app):
     def legal_context():
         return {"contact_email": os.environ.get("CONTACT_EMAIL", ""), "policy_date": "1 November 2026"}
 
+    @app.errorhandler(404)
+    def not_found(_err):
+        if request.path.startswith("/api/"):
+            return jsonify(error="not_found"), 404
+        return render_template("not_found.html", receipt=request.path.startswith("/r/")), 404
+
     @app.get("/privacy")
     def privacy():
         return render_template("privacy.html")
