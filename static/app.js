@@ -220,6 +220,7 @@ const VIEWS = {
     ${meter ? `<button class="btn big-go resume" data-act="go" data-to="meter"><span class="lamp">⏱️</span> METER RUNNING - TAP</button>`
       : draft ? `<button class="btn big-go resume" data-act="go" data-to="end"><span class="lamp">🧾</span> FINISH RECEIPT</button>`
       : `<button class="btn big-go" data-act="go" data-to="start"><span class="lamp">🚦</span> START THE METER</button>`}
+    <p class="center" style="margin:10px 0 0"><button class="btn white slim offduty" data-act="offDuty">🅿️ Go off duty</button></p>
 
     ${promisesCard(S.promises || [])}
 
@@ -384,7 +385,7 @@ const VIEWS = {
           <a class="btn white" href="${esc(p.receipt_url)}" target="_blank" rel="noopener">👀 View</a>
         </div>
       </div>`).join('')}
-    <button class="btn" data-act="go" data-to="home">Done 👍</button>
+    <div class="grid2"><button class="btn" data-act="go" data-to="home">Done 👍</button><button class="btn white" data-act="offDuty">🅿️ Off duty</button></div>
     ${view.fresh ? '' : `<p class="center"><button class="link" data-act="deleteTrip" data-id="${t.id}">Delete this trip (removes the fares)</button></p>`}
     ` + nav('');
   },
@@ -505,6 +506,21 @@ const VIEWS = {
     </div>
     <p class="center"><button class="link" data-act="logout">Sign out on this phone</button></p>
     ` + nav('settings');
+  },
+
+  parked() {
+    const how = isIOS()
+      ? 'Swipe up from the bottom of the screen and pause, then flick the taxi up and away.'
+      : 'Tap the square (recent apps) button, or swipe up and hold, then swipe the taxi away.';
+    return `<section class="parked">
+      <div class="sign off">TAXI</div>
+      <div class="zzz">🚕<span>💤</span></div>
+      <h1>Taxi parked</h1>
+      <p class="pills"><span>🛑 Meter off</span><span>📡 GPS off</span><span>🔋 Screen can sleep</span></p>
+      <p class="muted">You can leave it here or swipe the app away whenever you like. Everything is saved for next time.</p>
+      <div class="card how"><b>To close the app</b><br>${how}</div>
+      <button class="btn big-go" data-act="go" data-to="home"><span class="lamp">🚦</span> BACK ON DUTY</button>
+    </section>`;
   },
 
   offline: () => `<section class="hero"><div class="sign">TAXI</div><h1>No signal 📵</h1><p class="muted">Can't reach the taxi office right now.</p>
@@ -680,6 +696,18 @@ const ACTS = {
     } catch (e) { oops(e); }
   },
 
+  offDuty() {
+    const m = LS.get('taxi.meter');
+    if (m) {
+      if (confirm(`The meter is still running for ${m.kids.map(k => k.name).join(' & ')}.\n\nOK = go back to the meter (stop it there to print the receipt)\nCancel = stay on duty`)) go('meter');
+      return;
+    }
+    if (LS.get('taxi.end') && confirm('A receipt is still waiting to be printed. Finish it first?')) { go('end'); return; }
+    stopTick(); stopGps(); letSleep(); closeModal();
+    go('parked');
+    // An installed app on Android can usually close itself; iPhone ignores this, which is fine: the parked screen stays.
+    if (isInstalled()) setTimeout(() => { try { window.close(); } catch { /* not allowed */ } }, 600);
+  },
   startOrResume() {
     if (LS.get('taxi.meter')) go('meter');
     else if (LS.get('taxi.end')) go('end');
