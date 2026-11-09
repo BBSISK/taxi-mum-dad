@@ -6,3 +6,4 @@ instance/
 .pytest_cache/
 .env
 .DS_Store
+Claude outputs/
