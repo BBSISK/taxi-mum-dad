@@ -279,3 +279,8 @@ body:has(.onboard) #toast.show { transform: translate(-50%, 0); }
 /* car bingo launcher on the meter */
 .drive .bingo-open { min-height: 50px; font-size: 17px; background: #fff; flex-direction: column; gap: 0; line-height: 1.15; }
 .drive .bingo-open small { font-size: 12px; color: var(--muted); font-weight: 700; }
+
+.drive .games-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.drive .games-row .bingo-open { margin: 0; }
+.cc-home { height: 14px; background: #eee3c6; border-radius: 999px; overflow: hidden; }
+.cc-home span { display: block; height: 100%; background: #1f9d55; }

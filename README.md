@@ -62,6 +62,22 @@ A separate module (`bingo/` Flask blueprint + `static/bingo.js`) that pops up fr
 - **Privacy:** no audio or transcripts ever reach the server, only "who spotted which item". Bingo data is
   included in the family's data export and deleted along with a child or the whole family.
 
+## County Collector (spot the plates)
+
+A second in-car game (`county/` blueprint + `static/county.js`), opened from the running meter next to Car Bingo.
+
+- **Fill the family passport:** spot Irish number plates and collect all 26 counties of the Republic, shown as tiles
+  grouped by province. Northern Ireland plates are left out because they don't show a county.
+- **Scoring:** common counties (Dublin, Cork) 1 point, rarer ones up to 5 (Leitrim, Longford, Carlow). A county
+  nobody in the family has collected yet scores double. Each county counts once per trip, so passing a car park full
+  of Dublin plates doesn't run up the score. Collect all 26 and a new passport starts.
+- **Hands-free:** shout "*name, county*" ("Jack, Kerry!") or the plate letters ("Jack, K Y!"). Letter names
+  ("kay why", "oh why") are joined into plate codes, and common mishearings ("carry" for Kerry, "leash" for Laois)
+  are matched. It asks "who spotted it?" when no name is heard, and says "undo" to take one back.
+- **Shared voice core:** `static/games-core.js` holds the speech listener, announcer and fuzzy name matching, so
+  future games reuse it. Names taught in Car Bingo work here too.
+- **Privacy:** only "who spotted which county" reaches the server. No number plates, audio or transcripts are stored.
+
 ## Architecture
 
 ```
@@ -110,13 +126,14 @@ A private `/stats` page (protected by a key) shows anonymous counts only:
 
 ## Testing
 
-- **pytest:** 29 tests (including Car Bingo levels, scoring, family isolation and GDPR clean-up) covering fare maths, splits and discounts, ledger and undo, surcharge caps, promises and
+- **pytest:** 36 tests (including Car Bingo levels and County Collector scoring, season roll-over, family isolation and GDPR clean-up) covering fare maths, splits and discounts, ledger and undo, surcharge caps, promises and
   their limits, access control between families, ref tracking, the stats page, data export, deleting a child or family,
   receipt expiry, retention clean-up and the EU redirect.
 - **Both databases:** the suite runs against SQLite with foreign keys enforced, and against real PostgreSQL via
   `TEST_DATABASE_URL`.
 - **End-to-end:** Playwright runs on a mobile viewport with mocked GPS cover the full trip, the live surcharges, the
-  receipt, a kid signing a promise, a parent confirming it, and data export and delete.
+  receipt, a kid signing a promise, a parent confirming it, and data export and delete. Both games are also tested with
+  simulated speech recognition (names, aliases, letter codes, mishearings, undo and tap mode).
 
 ## Tech stack
 

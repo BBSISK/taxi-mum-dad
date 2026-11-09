@@ -243,6 +243,10 @@ const VIEWS = {
       <span class="face">${esc(p.emoji)}</span><span class="who"><b>${i === 0 ? '👑 ' : ''}${esc(p.name)}</b><span class="small muted">${p.spots} spotted</span></span>
       <span class="bal clear">${p.points}<small>points</small></span></div>`).join('')}</div>` : ''}
 
+    ${S.county && S.county.counties_collected ? `<h2>County passport 🗺️ <span class="small muted">${S.county.counties_collected}/${S.county.counties_total}${S.county.completed_seasons ? ` · ${S.county.completed_seasons} completed` : ''}</span></h2>
+    <div class="card"><div class="cc-home"><span style="width:${Math.round(100 * S.county.counties_collected / S.county.counties_total)}%"></span></div>
+      ${(S.county.leaderboard || []).length ? `<p class="small" style="margin:8px 0 0">${S.county.leaderboard.map((p, i) => `${i === 0 ? '👑 ' : ''}${esc(p.emoji)} ${esc(p.name)} <b>${p.points}</b>`).join(' · ')}</p>` : ''}</div>` : ''}
+
     <h2>Driver of the month 🏆</h2>
     <div class="league">${drivers.map(d => `
       <div class="card">
@@ -331,7 +335,10 @@ const VIEWS = {
         </button>`).join('')}
         <button class="live undo" data-act="liveUndo" aria-label="Undo last charge"><span class="e">↩️</span><span class="t">Undo</span></button>
       </div>` : ''}
-      <button class="btn bingo-open" data-act="openBingo">🎯 Play Car Bingo <small>hands-free I-spy</small></button>
+      <div class="games-row">
+        <button class="btn bingo-open" data-act="openBingo">🎯 Car Bingo <small>hands-free I-spy</small></button>
+        <button class="btn bingo-open" data-act="openCounty">🗺️ Counties <small>spot the plates</small></button>
+      </div>
       <button class="btn dark stop" data-act="stopMeter">🛑 STOP &amp; PRINT</button>
       <p class="small muted center tip">Eyes on the road 👀 Let the front-seat passenger tap the charges (they'll love billing their sibling).</p>
       <p class="center" style="margin:0"><button class="link" data-act="cancelMeter">Cancel trip</button></p>
@@ -778,6 +785,13 @@ const ACTS = {
     const players = [...m.kids.map(k => ({ type: 'kid', id: k.id, name: k.name, emoji: k.emoji })),
       ...(S?.me ? [{ type: 'parent', id: S.me.id, name: S.me.name, emoji: S.me.emoji }] : [])];
     window.TaxiBingo.open({ players, onClose: () => refresh().catch(() => {}) });
+  },
+  openCounty() {
+    const m = LS.get('taxi.meter');
+    if (!m || !window.TaxiCounty) return;
+    const players = [...m.kids.map(k => ({ type: 'kid', id: k.id, name: k.name, emoji: k.emoji })),
+      ...(S?.me ? [{ type: 'parent', id: S.me.id, name: S.me.name, emoji: S.me.emoji }] : [])];
+    window.TaxiCounty.open({ players, tripKey: m.startedAt, onClose: () => refresh().catch(() => {}) });
   },
   liveUndo() {
     const m = LS.get('taxi.meter'); if (!m || !m.extras?.length) return;

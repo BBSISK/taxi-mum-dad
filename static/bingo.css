@@ -1,5 +1,5 @@
 /* Car Bingo overlay: big, bright, readable at arm's length in a moving car */
-#bingo-root { position: fixed; inset: 0; z-index: 30; background: rgba(20, 20, 20, .55); display: flex; align-items: stretch; justify-content: center; }
+#bingo-root, #county-root { position: fixed; inset: 0; z-index: 30; background: rgba(20, 20, 20, .55); display: flex; align-items: stretch; justify-content: center; }
 .bg-sheet { width: 100%; max-width: 520px; background: #fff8e6; overflow-y: auto; padding: calc(10px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));
   font-family: "Nunito", system-ui, sans-serif; font-weight: 700; color: #141414; }
 .bg-head { display: flex; align-items: center; gap: 8px; position: sticky; top: calc(-10px - env(safe-area-inset-top)); background: #fff8e6; padding: 6px 0 10px; z-index: 2; }
@@ -56,4 +56,24 @@
 .bg-podium { list-style: none; padding: 0; margin: 12px auto; max-width: 300px; text-align: left; font-size: 18px; }
 .bg-podium li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 10px; border-bottom: 2px dashed #e6dcc2; }
 .bg-lvl { font-size: 16px; }
-@media (prefers-reduced-motion: reduce) { #bingo-root * { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { #bingo-root *, #county-root * { animation: none !important; transition: none !important; } }
+
+/* County Collector */
+.cc-progress { display: flex; align-items: center; gap: 10px; font-size: 15px; margin-bottom: 10px; }
+.cc-bar { flex: 1; height: 14px; background: #e6dcc2; border-radius: 999px; overflow: hidden; border: 2px solid #141414; }
+.cc-bar span { display: block; height: 100%; background: #1f9d55; transition: width .3s; }
+.cc-prov { font-family: "Bungee", Impact, sans-serif; font-weight: 400; font-size: 15px; margin: 14px 0 6px; }
+.cc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+.cc-tile { position: relative; min-height: 64px; border: 3px solid #141414; border-radius: 10px; background: #fff; color: #141414; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px; font: 800 12px "Nunito", system-ui, sans-serif; }
+.cc-tile .code { font-family: "Bungee", Impact, sans-serif; font-size: 20px; line-height: 1; }
+.cc-tile .pt { position: absolute; top: 2px; right: 4px; font-size: 11px; font-weight: 900; background: #141414; color: #ffc20e; border-radius: 999px; padding: 0 5px; }
+.cc-tile.t3 .pt { background: #7c3aed; color: #fff; } .cc-tile.t4 .pt { background: #d64545; color: #fff; }
+.cc-tile .by { position: absolute; top: 0; right: 3px; font-size: 16px; }
+.cc-tile.got { background: #dcfce7; border-color: #1f9d55; }
+.cc-tile.trip { box-shadow: 0 0 0 3px #ffc20e; animation: bgflip .45s ease-out; }
+.cc-log { list-style: none; padding: 0; margin: 0; font-size: 14px; }
+.cc-log li { display: flex; gap: 6px; align-items: center; padding: 5px 0; border-bottom: 2px dashed #e6dcc2; }
+.cc-log li.undone { text-decoration: line-through; opacity: .5; }
+.cc-log .new { background: #1f9d55; color: #fff; border-radius: 999px; padding: 0 6px; font-size: 11px; }
+.cc-log .pts { margin-left: auto; font-family: "Bungee", Impact, sans-serif; }
