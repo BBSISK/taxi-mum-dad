@@ -1,0 +1,59 @@
+/* Car Bingo overlay: big, bright, readable at arm's length in a moving car */
+#bingo-root { position: fixed; inset: 0; z-index: 30; background: rgba(20, 20, 20, .55); display: flex; align-items: stretch; justify-content: center; }
+.bg-sheet { width: 100%; max-width: 520px; background: #fff8e6; overflow-y: auto; padding: calc(10px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 700; color: #141414; }
+.bg-head { display: flex; align-items: center; gap: 8px; position: sticky; top: calc(-10px - env(safe-area-inset-top)); background: #fff8e6; padding: 6px 0 10px; z-index: 2; }
+.bg-title { font-family: "Bungee", Impact, sans-serif; font-size: 19px; flex: 1; white-space: nowrap; }
+.bg-level { background: #141414; color: #ffc20e; border-radius: 999px; padding: 3px 10px; font-weight: 900; font-size: 13px; }
+.bg-time { font-family: "Bungee", Impact, sans-serif; font-size: 22px; background: #ffc20e; border: 3px solid #141414; border-radius: 10px; padding: 0 8px; font-variant-numeric: tabular-nums; }
+.bg-time.low { background: #ffd9d9; animation: bgpulse 1s infinite; }
+@keyframes bgpulse { 50% { transform: scale(1.06); } }
+.bg-x { background: #fff; border: 3px solid #141414; border-radius: 50%; width: 40px; height: 40px; font-size: 18px; font-weight: 900; cursor: pointer; }
+.bg-lead { font-size: 17px; line-height: 1.4; margin: 4px 0 10px; }
+.bg-how { background: #fff; border: 3px dashed #141414; border-radius: 14px; padding: 10px 12px; font-size: 15px; line-height: 1.45; }
+.bg-small { font-size: 13px; color: #6d6658; margin: 8px 0; }
+.bg-warn { background: #ffd9d9; border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+.bg-toggle { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: #4a453b; margin: 8px 0; }
+.bg-toggle input { width: 20px; height: 20px; flex: 0 0 auto; margin-top: 1px; }
+.bg-points { font-size: 13px; margin: 10px 0 12px; text-align: center; }
+.bg-btn { display: block; width: 100%; min-height: 54px; margin-top: 10px; font: 900 18px "Nunito", system-ui, sans-serif; color: #141414; background: #ffc20e;
+  border: 3px solid #141414; border-radius: 14px; box-shadow: 0 4px 0 #141414; cursor: pointer; }
+.bg-btn.big { min-height: 72px; font-size: 21px; }
+.bg-btn.ghost { background: #fff; min-height: 46px; font-size: 15px; box-shadow: 0 3px 0 #141414; }
+.bg-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #141414; }
+.bg-btn[disabled] { opacity: .5; }
+.bg-players { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+.bg-player { display: flex; align-items: center; gap: 6px; background: #fff; border: 2px solid #141414; border-radius: 999px; padding: 4px 10px 4px 6px; font-size: 15px; }
+.bg-face { font-size: 22px; }
+.bg-pts { font-family: "Bungee", Impact, sans-serif; background: #141414; color: #ffc20e; border-radius: 999px; padding: 0 8px; font-size: 14px; }
+.bg-teach { border: 0; background: #ffe9a8; border-radius: 999px; padding: 4px 8px; font: 800 12px "Nunito", system-ui, sans-serif; cursor: pointer; }
+.bg-barwrap { height: 10px; background: #e6dcc2; border-radius: 999px; overflow: hidden; margin-bottom: 12px; }
+.bg-bar { height: 100%; background: #d64545; width: 100%; transition: width .12s linear; }
+.bg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.bg-card { position: relative; min-height: 86px; border: 3px solid #141414; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 8px 6px; background: #fff; box-shadow: 0 3px 0 #141414; font: 800 14px "Nunito", system-ui, sans-serif; color: #141414; }
+.bg-card .e { font-size: 32px; line-height: 1.1; }
+.bg-card .p { position: absolute; top: 4px; right: 6px; font-size: 12px; font-weight: 900; background: #141414; color: #ffc20e; border-radius: 999px; padding: 0 6px; }
+.bg-card.hidden { background: repeating-linear-gradient(45deg, #ffc20e 0 12px, #f4b400 12px 24px); }
+.bg-card.hidden .q { font-family: "Bungee", Impact, sans-serif; font-size: 40px; color: #141414; }
+.bg-card.found { background: #dcfce7; border-color: #1f9d55; animation: bgflip .45s ease-out; }
+.bg-card.found .by { font-size: 12px; margin-top: 4px; color: #14532d; }
+.bg-card.pick { cursor: pointer; }
+.bg-card.t3 .p { background: #7c3aed; color: #fff; } .bg-card.t4 .p { background: #d64545; color: #fff; }
+@keyframes bgflip { from { transform: rotateY(90deg); } to { transform: none; } }
+.bg-status { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; min-height: 34px; }
+.bg-mic { flex: 0 0 auto; background: #e6dcc2; border-radius: 999px; padding: 6px 10px; font-size: 13px; font-weight: 900; }
+.bg-mic.on { background: #d64545; color: #fff; animation: bgpulse 1.4s infinite; }
+.bg-heard { font-size: 14px; color: #4a453b; overflow: hidden; text-overflow: ellipsis; }
+.bg-whobtns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.bg-who { flex: 1 1 40%; min-height: 56px; font: 900 18px "Nunito", system-ui, sans-serif; background: #fff; border: 3px solid #141414; border-radius: 14px; box-shadow: 0 3px 0 #141414; cursor: pointer; }
+.bg-who.on { background: #ffc20e; }
+.bg-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; }
+.bg-actions .bg-btn { margin-top: 0; }
+.bg-center { text-align: center; padding-top: 10px; }
+.bg-center h2 { font-family: "Bungee", Impact, sans-serif; font-weight: 400; margin: 6px 0; }
+.bg-big { font-size: 64px; }
+.bg-podium { list-style: none; padding: 0; margin: 12px auto; max-width: 300px; text-align: left; font-size: 18px; }
+.bg-podium li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 10px; border-bottom: 2px dashed #e6dcc2; }
+.bg-lvl { font-size: 16px; }
+@media (prefers-reduced-motion: reduce) { #bingo-root * { animation: none !important; transition: none !important; } }

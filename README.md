@@ -42,6 +42,26 @@ passwords or emails.
 - **Built-in sharing:** branded WhatsApp receipt footer, a "know a parent who's a taxi too?" share card, and Open Graph
   preview images for link cards.
 
+## Car Bingo (in-car I-spy, hands-free)
+
+A separate module (`bingo/` Flask blueprint + `static/bingo.js`) that pops up from the running meter.
+
+- **Memorise, then hide:** players get 4–10 things to spot from an Irish car window (56 items, from "red car" to
+  "round tower"), have 15–40 seconds to memorise them, then the list hides. Points: everyday 1, common 2, lucky 3,
+  rare 5, plus +1 for every item spotted from memory. Peeking at the list costs the memory bonus.
+- **Hands-free by voice:** players shout "*name, thing!*" ("Jack, red door!"). The Web Speech API turns speech into
+  text on the phone. The app tries every alternative the recogniser offers and fuzzy-matches player names and item
+  keywords (plurals, near-misses). It asks "who spotted it?" when no name was heard, and announces each spot with
+  speech synthesis. Voice commands: "peek", "undo". "Teach my name" stores how the phone hears hard-to-recognise
+  names (e.g. Irish names) on the device only.
+- **Fallbacks:** big tap buttons when voice isn't supported, the mic is refused or the speech service keeps failing.
+  Results are queued offline and sent when signal returns.
+- **Adaptive difficulty:** clear the card in 10 minutes and the next card is bigger and rarer (level up). Time out
+  and the family drops back one level, never to the start.
+- **Separate scoring:** a "Spotter of the month" leaderboard that never touches the Taxi Tokens tab.
+- **Privacy:** no audio or transcripts ever reach the server, only "who spotted which item". Bingo data is
+  included in the family's data export and deleted along with a child or the whole family.
+
 ## Architecture
 
 ```
@@ -90,7 +110,7 @@ A private `/stats` page (protected by a key) shows anonymous counts only:
 
 ## Testing
 
-- **pytest:** 20 tests covering fare maths, splits and discounts, ledger and undo, surcharge caps, promises and
+- **pytest:** 29 tests (including Car Bingo levels, scoring, family isolation and GDPR clean-up) covering fare maths, splits and discounts, ledger and undo, surcharge caps, promises and
   their limits, access control between families, ref tracking, the stats page, data export, deleting a child or family,
   receipt expiry, retention clean-up and the EU redirect.
 - **Both databases:** the suite runs against SQLite with foreign keys enforced, and against real PostgreSQL via
@@ -101,7 +121,7 @@ A private `/stats` page (protected by a key) shows anonymous counts only:
 ## Tech stack
 
 Python 3.12 · Flask 3 · Flask-SQLAlchemy / SQLAlchemy 2 · PostgreSQL (Neon) · psycopg 3 · gunicorn · Render ·
-vanilla JavaScript PWA (service worker, Geolocation, Screen Wake Lock, Web Share, Canvas) · segno (QR) · pytest ·
+vanilla JavaScript PWA (service worker, Geolocation, Screen Wake Lock, Web Speech API, Web Share, Canvas) · segno (QR) · pytest ·
 Playwright · Pillow (icons and share images) · ffmpeg (30-second explainer video)
 
 ## Run locally

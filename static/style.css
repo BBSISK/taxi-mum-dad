@@ -275,3 +275,7 @@ body:has(.onboard) #toast.show { transform: translate(-50%, 0); }
 .parked .pills { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 0 0 12px; }
 .parked .pills span { background: #fff; border: 2px solid var(--ink); border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 800; }
 .parked .how { text-align: left; font-size: 14px; margin: 16px 0 20px; box-shadow: none; border-style: dashed; }
+
+/* car bingo launcher on the meter */
+.drive .bingo-open { min-height: 50px; font-size: 17px; background: #fff; flex-direction: column; gap: 0; line-height: 1.15; }
+.drive .bingo-open small { font-size: 12px; color: var(--muted); font-weight: 700; }

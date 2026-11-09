@@ -18,6 +18,8 @@ from flask import (Flask, Response, abort, jsonify, redirect, render_template,
 from sqlalchemy import func
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from bingo import bingo_bp, bingo_summary, export_bingo, purge_bingo_family, purge_bingo_kids
+
 from models import (DEFAULT_TASKS, EXTRAS, FIVE_STAR_DISCOUNT, MAX_PER_EXTRA, PASSENGER_TAGS,
                     Event, Family, Kid, LedgerEntry, Parent, Passenger, Promise, Task, Trip, db,
                     new_invite_code, utcnow)
@@ -224,6 +226,7 @@ def create_app(test_config=None):
         rename_old_defaults()
 
     register_routes(app)
+    app.register_blueprint(bingo_bp)
     return app
 
 
@@ -254,6 +257,7 @@ def purge_kids(family_id, kid_ids):
     trip_ids = {p.trip_id for p in pax}
     Promise.query.filter(Promise.kid_id.in_(kid_ids)).delete(synchronize_session=False)
     LedgerEntry.query.filter(LedgerEntry.kid_id.in_(kid_ids)).delete(synchronize_session=False)
+    purge_bingo_kids(kid_ids)
     if pax_ids:
         Event.query.filter(Event.kind == "receipt_open", Event.subject_id.in_(pax_ids)).delete(synchronize_session=False)
         Passenger.query.filter(Passenger.id.in_(pax_ids)).delete(synchronize_session=False)
@@ -265,6 +269,7 @@ def purge_kids(family_id, kid_ids):
 
 def purge_family(family_id):
     """Hard-delete a whole family. Order matters for Postgres foreign keys."""
+    purge_bingo_family(family_id)
     purge_kids(family_id, [k.id for k in Kid.query.filter_by(family_id=family_id).all()])
     Promise.query.filter_by(family_id=family_id).delete(synchronize_session=False)
     LedgerEntry.query.filter_by(family_id=family_id).delete(synchronize_session=False)
@@ -458,6 +463,7 @@ def register_routes(app):
             five_star_discount=FIVE_STAR_DISCOUNT,
             drivers=drivers,
             trips=[trip_json(t) for t in trips],
+            bingo=bingo_summary(fam.id),
             promises=[promise_json(p) for p in Promise.query.filter_by(family_id=fam.id, status="promised")
                       .order_by(Promise.due_on, Promise.id).all()],
         )
@@ -509,6 +515,7 @@ def register_routes(app):
             "receipts": [row_dict(x) for x in Passenger.query.filter(Passenger.trip_id.in_(trip_ids))] if trip_ids else [],
             "promises": [row_dict(x) for x in Promise.query.filter_by(family_id=fid)],
             "ledger": [row_dict(x) for x in LedgerEntry.query.filter_by(family_id=fid)],
+            "car_bingo": export_bingo(fid, row_dict),
         }
         resp = jsonify(data)
         resp.headers["Content-Disposition"] = f'attachment; filename="taxi-of-mum-and-dad-data-{utcnow():%Y-%m-%d}.json"'

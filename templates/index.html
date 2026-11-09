@@ -18,12 +18,14 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=9">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=10">
+<link rel="stylesheet" href="{{ url_for('static', filename='bingo.css') }}?v=10">
 </head>
 <body>
 <main id="app" aria-live="polite"><div class="boot">🚕</div></main>
 <div id="toast" role="status"></div>
 <div id="modal" class="modal" hidden></div>
-<script src="{{ url_for('static', filename='app.js') }}?v=9"></script>
+<script src="{{ url_for('static', filename='bingo.js') }}?v=10"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=10"></script>
 </body>
 </html>

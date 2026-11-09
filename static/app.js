@@ -238,6 +238,11 @@ const VIEWS = {
           <p class="small muted" style="margin-top:0">Who's always looking for a lift? Just a first name.</p>
           <button class="btn" data-act="quickAddKid">➕ Add a passenger</button></div>`}
 
+    ${(S.bingo?.spotters || []).length ? `<h2>Spotter of the month 🎯 <span class="small muted">Car Bingo · level ${S.bingo.level}</span></h2>
+    <div class="card tabs-list">${S.bingo.spotters.map((p, i) => `<div class="tabrow" style="cursor:default">
+      <span class="face">${esc(p.emoji)}</span><span class="who"><b>${i === 0 ? '👑 ' : ''}${esc(p.name)}</b><span class="small muted">${p.spots} spotted</span></span>
+      <span class="bal clear">${p.points}<small>points</small></span></div>`).join('')}</div>` : ''}
+
     <h2>Driver of the month 🏆</h2>
     <div class="league">${drivers.map(d => `
       <div class="card">
@@ -326,6 +331,7 @@ const VIEWS = {
         </button>`).join('')}
         <button class="live undo" data-act="liveUndo" aria-label="Undo last charge"><span class="e">↩️</span><span class="t">Undo</span></button>
       </div>` : ''}
+      <button class="btn bingo-open" data-act="openBingo">🎯 Play Car Bingo <small>hands-free I-spy</small></button>
       <button class="btn dark stop" data-act="stopMeter">🛑 STOP &amp; PRINT</button>
       <p class="small muted center tip">Eyes on the road 👀 Let the front-seat passenger tap the charges (they'll love billing their sibling).</p>
       <p class="center" style="margin:0"><button class="link" data-act="cancelMeter">Cancel trip</button></p>
@@ -765,6 +771,13 @@ const ACTS = {
     el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
     const b = $('#m-bump'); b.textContent = '+' + e.credits; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go');
     drawMeter();
+  },
+  openBingo() {
+    const m = LS.get('taxi.meter');
+    if (!m || !window.TaxiBingo) return;
+    const players = [...m.kids.map(k => ({ type: 'kid', id: k.id, name: k.name, emoji: k.emoji })),
+      ...(S?.me ? [{ type: 'parent', id: S.me.id, name: S.me.name, emoji: S.me.emoji }] : [])];
+    window.TaxiBingo.open({ players, onClose: () => refresh().catch(() => {}) });
   },
   liveUndo() {
     const m = LS.get('taxi.meter'); if (!m || !m.extras?.length) return;
