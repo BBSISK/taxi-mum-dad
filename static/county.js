@@ -48,8 +48,15 @@
   }
 
   /* ------------------------------------------------------------ voice */
-  function speak(text, after) {
-    V.say(text, { muted: st && st.muted, before: () => listener && listener.pause(), after: () => { after && after(); if (st && st.voice) listener && listener.resume(); } });
+  function speak(text, after, kind = 'info') {
+    V.say(text, { kind, before: () => listener && listener.pause(), after: () => { after && after(); if (st && st.voice) listener && listener.resume(); } });
+  }
+  function startListener() {
+    if (listener) listener.stop();
+    listener = V.createListener({ onPhrases: hear, onState: setMic,
+      onFatal: () => { st.voice = false; st.voiceProblem = true; render(); },
+      onPause: () => render(), onResume: () => render() });
+    listener.start();
   }
   function hear(alts) {
     if (!st || !st.data) return;
@@ -62,7 +69,7 @@
       if (!plate && who && st.waitingFor) { claim(st.waitingFor, who.p); return; }
       if (!plate) continue;
       const player = who ? who.p : st.players.length === 1 ? st.players[0] : null;
-      if (!player) { st.waitingFor = plate; render(); speak(`${plate.name}! Who spotted it?`); return; }
+      if (!player) { st.waitingFor = plate; render(); speak(`${plate.name}! Who spotted it?`, () => listener && listener.mode === 'ptt' && listener.push(), 'question'); return; }
       claim(plate, player);
       return;
     }
@@ -92,7 +99,7 @@
       if (navigator.vibrate) try { navigator.vibrate(r.is_new ? [60, 40, 60] : 60); } catch { /* ignore */ }
       render();
       const left = r.counties_total - r.counties_collected;
-      if (r.complete) speak(`${plate.name}! That's all 26 counties! Passport complete! ${player.name} gets ${r.points} points.`);
+      if (r.complete) speak(`${plate.name}! That's all 26 counties! Passport complete! ${player.name} gets ${r.points} points.`, null, 'question');
       else if (r.is_new) speak(`New county! ${plate.name} for ${player.name}, ${r.points} points. ${left} to go.`);
       else speak(`${plate.name} again, ${r.points} point${r.points === 1 ? '' : 's'} for ${player.name}.`);
     } catch {
@@ -129,11 +136,8 @@
       const d = await res.json();
       st.plates = d.plates;
       st.data = d;
+      if (st.voice) startListener();
       render();
-      if (st.voice) {
-        listener = V.createListener({ onPhrases: hear, onFatal: () => { st.voice = false; st.voiceProblem = true; render(); }, onState: setMic });
-        speak(`County Collector. ${d.counties_collected} of 26 so far. Shout your name and the county.`, () => listener.start());
-      }
     } catch {
       st.error = true;
       render();
@@ -141,11 +145,16 @@
   }
 
   /* ------------------------------------------------------------ view */
-  function setMic(on) {
+  function setMic(s) {
+    if (!st) return;
+    if (s) st.mic = s;
     const m = document.getElementById('cc-mic');
-    if (!m || !st) return;
+    if (!m) return;
+    const on = st.voice && st.mic && (st.mic.listening || st.mic.pttActive);
     m.className = 'bg-mic' + (on ? ' on' : '');
-    m.textContent = st.voice ? (on ? '🎤 Listening…' : '🎤 …') : '✋ Tap mode';
+    m.textContent = st.voice ? V.micChip(st.mic) : '✋ Tap mode';
+    const b = document.getElementById('cc-ptt');
+    if (b) { b.classList.toggle('on', !!(st.mic && st.mic.pttActive)); b.textContent = st.mic && st.mic.pttActive ? '🎤 Listening… shout it!' : '🎤 Tap, then shout "Jack, Kerry!"'; }
   }
   function render() {
     const root = document.getElementById('county-root');
@@ -163,6 +172,8 @@
       <div class="bg-status"><span id="cc-mic" class="bg-mic"></span>
         <span class="bg-heard">${st.hint && !st.tapPlayer ? '<b>Tap who spotted it first</b>, then the county' : st.voiceProblem && !st.voice ? 'Voice unavailable: tap a name, then a county' : st.waitingFor ? `<b>${esc(st.waitingFor.name)}!</b> Who spotted it?` :
           st.lastHeard ? `Heard: “${esc(st.lastHeard)}”` : st.voice ? 'Shout: <i>“Jack, Kerry!”</i> or <i>“Jack, K Y!”</i>' : 'Tap who spotted it, then the county'}</span></div>
+      ${st.voice && st.mic && st.mic.call ? `<p class="bg-warn">⏸️ Paused while you're on a call. Listening starts again when it ends.</p>` : ''}
+      ${st.voice && listener && listener.mode === 'ptt' ? `<button id="cc-ptt" class="bg-btn big gv-ptt" data-c="ptt">🎤 Tap, then shout "Jack, Kerry!"</button>` : ''}
       <div class="bg-whobtns">${st.players.map(p => `<button class="bg-who ${st.tapPlayer === p ? 'on' : ''}" data-c="who" data-key="${p.type}-${p.id}">${esc(p.emoji)} ${esc(p.name)}</button>`).join('')}</div>
       ${st.tapPlayer ? `<p class="bg-small">${esc(st.tapPlayer.name)} spotted… tap the county</p>` : ''}
       ${PROVINCES.map(pr => `<h3 class="cc-prov">${pr}</h3><div class="cc-grid">${st.plates.filter(p => p.province === pr).map(p => {
@@ -177,11 +188,13 @@
         `<div class="bg-player">${i === 0 ? '👑' : ''}<span class="bg-face">${esc(r.emoji)}</span><b>${esc(r.name)}</b><span class="bg-pts">${r.points}</span></div>`).join('')}</div>` : ''}
       <p class="bg-small">New county = double points (shown on the tile). Rarer counties score more. Each county counts once per trip. Say <i>“undo”</i> to take back a mistake.</p>
       <div class="bg-actions">${st.voice ? `<button class="bg-btn ghost" data-c="tapmode">✋ Tap instead</button>` : V.supported && !st.voiceProblem ? `<button class="bg-btn ghost" data-c="voicemode">🎤 Use voice</button>` : ''}
-        <button class="bg-btn ghost" data-c="undo">↩️ Undo</button></div>`;
+        <button class="bg-btn ghost" data-c="undo">↩️ Undo</button></div>
+      ${V.supported ? `<details class="gv-more" ${st.settingsOpen ? 'open' : ''}><summary>⚙️ Voice settings</summary>${V.settingsHtml('data-cs')}
+        <p class="bg-small">“Always on (radio-friendly)” keeps the phone's mic open the whole time, so the car radio shouldn't keep cutting out. If it still does in your car, try push to talk.</p></details>` : ''}`;
     }
     root.innerHTML = `<div class="bg-sheet"><div class="bg-head"><span class="bg-title">🗺️ County Collector</span>
       <button class="bg-x" data-c="close" aria-label="Close County Collector">✕</button></div>${body}</div>`;
-    setMic(false);
+    setMic();
   }
 
   function onClick(e) {
@@ -193,7 +206,8 @@
     else if (a === 'retry') { st.error = false; render(); load(); }
     else if (a === 'undo') undo();
     else if (a === 'tapmode') { st.voice = false; listener && listener.stop(); render(); }
-    else if (a === 'voicemode') { st.voice = true; render(); if (!listener) listener = V.createListener({ onPhrases: hear, onFatal: () => { st.voice = false; st.voiceProblem = true; render(); }, onState: setMic }); listener.start(); }
+    else if (a === 'voicemode') { st.voice = true; startListener(); render(); }
+    else if (a === 'ptt') listener && listener.push();
     else if (a === 'who') {
       const p = byKey(el.dataset.key);
       if (st.waitingFor) { claim(st.waitingFor, p); return; }
@@ -227,6 +241,14 @@
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-label', 'County Collector');
     root.addEventListener('click', onClick);
+    root.addEventListener('toggle', e => { if (st && e.target.classList.contains('gv-more')) st.settingsOpen = e.target.open; }, true);
+    root.addEventListener('change', e => {
+      const k = e.target.dataset && e.target.dataset.cs;
+      if (!k || !st) return;
+      V.setPrefs(k === 'vmode' ? { mode: e.target.value } : { talk: e.target.value });
+      if (k === 'vmode' && st.voice) startListener();
+      render();
+    });
     document.body.appendChild(root);
     render();
     load();

@@ -11,6 +11,8 @@
   'use strict';
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
   const synth = window.speechSynthesis;
+  const V = window.TaxiVoice;  // shared voice core (static/games-core.js)
+  let listener = null;
   const LS = {
     get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } },
@@ -82,64 +84,33 @@
 
   /* ------------------------------------------------------------ speech */
   function voiceOn() { return !!Rec && st && st.voice; }
-  function say(text, then) {
-    if (!synth || (st && st.muted)) { then && then(); return; }
-    try {
-      pauseListening();
-      synth.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      const v = synth.getVoices().find(x => /en-IE/i.test(x.lang)) || synth.getVoices().find(x => /en-GB/i.test(x.lang));
-      if (v) u.voice = v;
-      u.rate = 1.05;
-      let done = false;
-      const finish = () => { if (done) return; done = true; if (st) st.speaking = false; then && then(); resumeListening(); };
-      u.onend = u.onerror = finish;
-      setTimeout(finish, 1500 + text.length * 85);  // some phones never fire onend: don't get stuck
-      if (st) st.speaking = true;
-      synth.speak(u);
-    } catch { then && then(); }
+  /* kind: 'info' (silent unless "announce every spot"), 'question' or 'alert' (always spoken unless silent). */
+  function say(text, then, kind = 'info') {
+    V.say(text, { kind, before: () => listener && listener.pause(),
+      after: () => { then && then(); if (listener) listener.resume(); } });
   }
   function startListening() {
-    if (!voiceOn() || rec) return;
-    rec = new Rec();
-    rec.lang = 'en-IE';
-    rec.continuous = true;
-    rec.interimResults = false;
-    rec.maxAlternatives = 3;
-    rec.onresult = e => {
-      st.recErrors = 0;
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (!e.results[i].isFinal) continue;
-        // try every alternative the recogniser offers, best first
-        const alts = Array.from(e.results[i]).map(a => a.transcript);
-        hear(alts);
-      }
-    };
-    rec.onerror = e => {
-      if (!st) return;
-      const fatal = ['not-allowed', 'service-not-allowed', 'audio-capture'].includes(e.error);
-      if (!fatal && (e.error === 'no-speech' || e.error === 'aborted')) return;  // normal pauses
-      st.recErrors = (st.recErrors || 0) + 1;
-      if (fatal || st.recErrors >= 3) {  // no mic, or speech service unreachable (e.g. no signal): tap mode
-        st.voice = false; st.voiceProblem = true; pauseListening(); render();
-      }
-    };
-    rec.onend = () => {
-      rec = null;
-      if (st && st.phase === 'play' && st.voice && !st.speaking) setTimeout(startListening, 250);  // browsers stop after silence
-      setMic();
-    };
-    try { rec.start(); st.listening = true; } catch { rec = null; }
-    setMic();
+    if (!voiceOn()) return;
+    if (!listener) listener = V.createListener({
+      onPhrases: hear,
+      onState: s => { if (st) { st.mic = s; setMic(); } },
+      onFatal: () => { if (!st) return; st.voice = false; st.voiceProblem = true; stopListening(); render(); },
+      onPause: () => { if (st && st.phase === 'play' && !st.pausedAt) { st.pausedAt = Date.now(); render(); } },  // phone call: stop the clock
+      onResume: () => { if (st && st.pausedAt) { st.roundEnd += Date.now() - st.pausedAt; st.pausedAt = 0; render(); } },
+    });
+    listener.start();
+    if (st.phase === 'play') render();  // shows the push-to-talk button when that mode is in use
   }
-  function pauseListening() { if (rec) { try { rec.abort(); } catch { /* ignore */ } rec = null; } setMic(); }
-  function resumeListening() { if (st && st.phase === 'play' && st.voice) setTimeout(startListening, 150); }
+  function stopListening() { if (listener) { listener.stop(); listener = null; } st && (st.mic = null); setMic(); }
+  function pauseListening() { stopListening(); }
   function setMic() {
     const m = document.getElementById('bg-mic');
     if (!m || !st) return;
-    const on = !!rec && !st.speaking;
+    const on = st.voice && st.mic && (st.mic.listening || st.mic.pttActive);
     m.className = 'bg-mic' + (on ? ' on' : '');
-    m.textContent = st.voice ? (on ? '🎤 Listening…' : '🎤 …') : '✋ Tap mode';
+    m.textContent = st.voice ? V.micChip(st.mic) : '✋ Tap mode';
+    const b = document.getElementById('bg-ptt');
+    if (b) { b.classList.toggle('on', !!(st.mic && st.mic.pttActive)); b.textContent = st.mic && st.mic.pttActive ? '🎤 Listening… shout it!' : '🎤 Tap, then shout "Jack, red door!"'; }
   }
 
   /* ------------------------------------------------------------ game logic */
@@ -161,7 +132,7 @@
       if (!player) {
         st.waitingFor = item;
         render();
-        say(`${item.label}! Who spotted it?`);
+        say(`${item.label}! Who spotted it?`, () => listener && listener.mode === 'ptt' && listener.push(), 'question');
         return;
       }
       award(item, player);
@@ -182,7 +153,7 @@
     render();
     const done = remaining().length === 0;
     say(`${item.label}! ${pts} point${pts === 1 ? '' : 's'} for ${player.name}${recalled ? ', from memory' : ''}.${done ? ' Card cleared!' : ''}`,
-      done ? () => end('cleared') : null);
+      done ? () => end('cleared') : null, done ? 'alert' : 'info');
   }
 
   function undo() {
@@ -212,11 +183,12 @@
       if (bar) bar.style.width = Math.max(0, 100 * left / st.cfg.memorise_seconds) + '%';
       if (left <= 0) startPlay();
     } else if (st.phase === 'play') {
+      if (st.pausedAt) return;  // clock stopped during a phone call
       const left = (st.roundEnd - now) / 1000;
       const el = document.getElementById('bg-time');
       if (el) { el.textContent = mmss(left); el.classList.toggle('low', left < 60); }
       if (left <= 0) end('timeout');
-      else if (left < 60 && !st.warned) { st.warned = true; say('One minute left!'); }
+      else if (left < 60 && !st.warned) { st.warned = true; say('One minute left!', null, 'alert'); }
     }
   }
 
@@ -247,7 +219,7 @@
     st.phase = 'play';
     st.roundEnd = Date.now() + st.cfg.round_seconds * 1000;
     render();
-    say(st.voice ? 'List hidden! Shout your name and what you see.' : 'List hidden! Tap a name when you spot something.', () => startListening());
+    say(st.voice ? 'List hidden! Shout your name and what you see.' : 'List hidden! Tap a name when you spot something.', () => startListening(), 'alert');
   }
 
   async function end(outcome) {
@@ -346,7 +318,7 @@
         <label class="bg-toggle"><input type="checkbox" data-b="voice" ${st.voice ? 'checked' : ''}> Voice spotting (uses your phone's speech recognition; we only keep who spotted what)</label>`
         : `<p class="bg-small">Voice spotting isn't available in this browser, so it's tap mode. (Chrome on Android and Safari on iPhone usually support it.)</p>`}
       ${st.voiceProblem ? `<p class="bg-warn">🎤 Voice isn't working right now (no microphone access or no signal), so it's tap mode.</p>` : ''}
-      <label class="bg-toggle"><input type="checkbox" data-b="mute" ${st.muted ? 'checked' : ''}> Mute the announcer</label>
+      ${Rec && st.voice ? V.settingsHtml('data-bs') + `<p class="bg-small">“Always on (radio-friendly)” keeps the phone's mic open the whole time so the car radio shouldn't keep cutting out. If it still does in your car, pick push to talk.</p>` : ''}
       <div class="bg-points">Points: everyday 1 · common 2 · lucky 3 · rare 5 · <b>+${st.recallBonus} from memory</b></div>
       <button class="bg-btn big" data-b="go">👀 Show me the list</button>`;
     else if (st.phase === 'memorise') body = `
@@ -357,6 +329,7 @@
     else if (st.phase === 'play') {
       const peeking = st.peekUntil > Date.now();
       body = `
+      ${st.pausedAt ? `<p class="bg-warn">⏸️ Paused for a call: the clock has stopped and starts again when the call ends.</p>` : ''}
       <div class="bg-status"><span id="bg-mic" class="bg-mic"></span>
         <span class="bg-heard">${st.voiceProblem && !st.voice ? 'Voice unavailable: tap a name below' : st.waitingFor ? `<b>${esc(st.waitingFor.label)}!</b> Who spotted it?` : st.lastHeard ? `Heard: “${esc(st.lastHeard)}”` : st.voice ? 'Shout: <i>“name, thing!”</i>' : ''}</span></div>
       ${st.waitingFor || st.tapPlayer || !st.voice ? `<div class="bg-whobtns">${st.players.map(p =>
@@ -369,6 +342,7 @@
           if (peeking) return `<div class="bg-card show ${tierClass(i.tier)}"><span class="e">${esc(i.emoji)}</span><span class="l">${esc(i.label)}</span><span class="p">${i.points}</span></div>`;
           return `<div class="bg-card hidden ${tierClass(i.tier)}"><span class="q">?</span><span class="p">${i.points}</span></div>`;
         }).join('')}</div>`}
+      ${st.voice && listener && listener.mode === 'ptt' ? `<button id="bg-ptt" class="bg-btn big gv-ptt" data-b="ptt">🎤 Tap, then shout "Jack, red door!"</button>` : ''}
       ${playersStrip(false)}
       <div class="bg-actions">
         <button class="bg-btn ghost" data-b="peek" ${peeking ? 'disabled' : ''}>👀 Peek${st.peeked ? '' : ' (lose memory bonus)'}</button>
@@ -410,6 +384,7 @@
     else if (a === 'undo') undo();
     else if (a === 'teach') teachName(byKey(el.dataset.key));
     else if (a === 'tapmode') { st.voice = false; pauseListening(); render(); }
+    else if (a === 'ptt') listener && listener.push();
     else if (a === 'who') {
       const p = byKey(el.dataset.key);
       if (st.waitingFor) { award(st.waitingFor, p); return; }
@@ -423,6 +398,8 @@
     }
   }
   function onChange(e) {
+    const vs = e.target.dataset?.bs;
+    if (st && vs) { V.setPrefs(vs === 'vmode' ? { mode: e.target.value } : { talk: e.target.value }); render(); return; }
     const a = e.target.dataset?.b;
     if (!st || !a) return;
     if (a === 'voice') st.voice = e.target.checked;

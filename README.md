@@ -74,8 +74,14 @@ A second in-car game (`county/` blueprint + `static/county.js`), opened from the
 - **Hands-free:** shout "*name, county*" ("Jack, Kerry!") or the plate letters ("Jack, K Y!"). Letter names
   ("kay why", "oh why") are joined into plate codes, and common mishearings ("carry" for Kerry, "leash" for Laois)
   are matched. It asks "who spotted it?" when no name is heard, and says "undo" to take one back.
-- **Shared voice core:** `static/games-core.js` holds the speech listener, announcer and fuzzy name matching, so
-  future games reuse it. Names taught in Car Bingo work here too.
+- **Shared voice core:** `static/games-core.js` holds the speech listener, announcer and fuzzy name matching for both
+  games. Names taught in one game work in the other.
+- **Radio-friendly listening:** on Android, browser speech recognition stops after a few seconds of silence, and each
+  restart reopens the microphone. Cars (including Android Auto) treat that like a call and cut the radio every 10–15
+  seconds. Where the browser supports `SpeechRecognition.start(track)`, the games open the phone's own mic once and
+  feed that stream to the recogniser, so restarts never touch the car's audio. Other phones get push to talk. Spoken
+  feedback defaults to "only when it needs an answer" ("Leitrim! Who spotted it?"); everything else is a buzz and the
+  screen. During a phone call the games release the mic, pause (Car Bingo stops its clock) and resume afterwards.
 - **Privacy:** only "who spotted which county" reaches the server. No number plates, audio or transcripts are stored.
 
 ## Architecture

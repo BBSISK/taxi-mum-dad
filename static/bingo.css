@@ -77,3 +77,12 @@
 .cc-log li.undone { text-decoration: line-through; opacity: .5; }
 .cc-log .new { background: #1f9d55; color: #fff; border-radius: 999px; padding: 0 6px; font-size: 11px; }
 .cc-log .pts { margin-left: auto; font-family: "Bungee", Impact, sans-serif; }
+
+/* Shared voice controls */
+.gv-ptt { min-height: 84px; font-size: 20px; margin: 4px 0 12px; }
+.gv-ptt.on { background: #d64545; color: #fff; animation: bgpulse 1.2s infinite; }
+.gv-more { margin-top: 14px; font-size: 14px; }
+.gv-more summary { cursor: pointer; font-weight: 900; padding: 6px 0; }
+.gv-settings { display: grid; gap: 8px; margin: 8px 0; }
+.gv-settings label { display: grid; gap: 4px; font-size: 13px; color: #4a453b; }
+.gv-settings select { font: 800 15px "Nunito", system-ui, sans-serif; padding: 10px; border: 3px solid #141414; border-radius: 12px; background: #fff; color: #141414; }
