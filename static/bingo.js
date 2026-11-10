@@ -97,6 +97,7 @@
       onFatal: () => { if (!st) return; st.voice = false; st.voiceProblem = true; stopListening(); render(); },
       onPause: () => { if (st && st.phase === 'play' && !st.pausedAt) { st.pausedAt = Date.now(); render(); } },  // phone call: stop the clock
       onResume: () => { if (st && st.pausedAt) { st.roundEnd += Date.now() - st.pausedAt; st.pausedAt = 0; render(); } },
+      onModeChange: () => { if (st) { st.fellBack = true; render(); } },
     });
     listener.start();
     if (st.phase === 'play') render();  // shows the push-to-talk button when that mode is in use
@@ -318,7 +319,7 @@
         <label class="bg-toggle"><input type="checkbox" data-b="voice" ${st.voice ? 'checked' : ''}> Voice spotting (uses your phone's speech recognition; we only keep who spotted what)</label>`
         : `<p class="bg-small">Voice spotting isn't available in this browser, so it's tap mode. (Chrome on Android and Safari on iPhone usually support it.)</p>`}
       ${st.voiceProblem ? `<p class="bg-warn">🎤 Voice isn't working right now (no microphone access or no signal), so it's tap mode.</p>` : ''}
-      ${Rec && st.voice ? V.settingsHtml('data-bs') + `<p class="bg-small">“Always on (radio-friendly)” keeps the phone's mic open the whole time so the car radio shouldn't keep cutting out. If it still does in your car, pick push to talk.</p>` : ''}
+      ${Rec && st.voice ? settingsBlock() + `<p class="bg-small">“Always on (radio-friendly)” keeps the phone's mic open the whole time so the car radio shouldn't keep cutting out. If it still does in your car, pick push to talk.</p>` : ''}
       <div class="bg-points">Points: everyday 1 · common 2 · lucky 3 · rare 5 · <b>+${st.recallBonus} from memory</b></div>
       <button class="bg-btn big" data-b="go">👀 Show me the list</button>`;
     else if (st.phase === 'memorise') body = `
@@ -342,13 +343,15 @@
           if (peeking) return `<div class="bg-card show ${tierClass(i.tier)}"><span class="e">${esc(i.emoji)}</span><span class="l">${esc(i.label)}</span><span class="p">${i.points}</span></div>`;
           return `<div class="bg-card hidden ${tierClass(i.tier)}"><span class="q">?</span><span class="p">${i.points}</span></div>`;
         }).join('')}</div>`}
+      ${st.fellBack ? `<p class="bg-warn">Radio-friendly listening didn't work on this phone, so it's push to talk: tap the big button, then shout.</p>` : ''}
       ${st.voice && listener && listener.mode === 'ptt' ? `<button id="bg-ptt" class="bg-btn big gv-ptt" data-b="ptt">🎤 Tap, then shout "Jack, red door!"</button>` : ''}
       ${playersStrip(false)}
       <div class="bg-actions">
         <button class="bg-btn ghost" data-b="peek" ${peeking ? 'disabled' : ''}>👀 Peek${st.peeked ? '' : ' (lose memory bonus)'}</button>
         ${st.voice ? `<button class="bg-btn ghost" data-b="tapmode">✋ Tap instead</button>` : ''}
         <button class="bg-btn ghost" data-b="undo">↩️ Undo</button>
-      </div>`;
+      </div>
+      ${Rec ? `<details class="gv-more" ${st.settingsOpen ? 'open' : ''}><summary>⚙️ Voice settings</summary>${settingsBlock()}</details>` : ''}`;
     } else if (st.phase === 'end') {
       const r = st.result || {};
       const totals = st.players.map(p => ({ p, pts: st.found.filter(f => f.player.type === p.type && f.player.id === p.id).reduce((a, f) => a + f.points, 0) }))
@@ -369,6 +372,8 @@
   }
 
   function onClick(e) {
+    const vb = e.target.closest('button[data-bs]');
+    if (vb && st) { V.handleSetting(vb.dataset.bs); if (vb.dataset.bs === 'vretry') restartVoice(); render(); return; }
     const el = e.target.closest('[data-b]');
     if (!el || !st) return;
     const a = el.dataset.b;
@@ -397,9 +402,13 @@
       if (item && p) award(item, p, true);
     }
   }
+  function settingsBlock() {
+    return V.settingsHtml('data-bs').replace('<details class="gv-check">', `<details class="gv-check" ${st.checkOpen ? 'open' : ''}>`);
+  }
+  function restartVoice() { if (st && st.phase === 'play' && st.voice) { st.fellBack = false; stopListening(); startListening(); } }
   function onChange(e) {
     const vs = e.target.dataset?.bs;
-    if (st && vs) { V.setPrefs(vs === 'vmode' ? { mode: e.target.value } : { talk: e.target.value }); render(); return; }
+    if (st && vs) { V.handleSetting(vs, e.target.value); if (vs === 'vmode') restartVoice(); render(); return; }
     const a = e.target.dataset?.b;
     if (!st || !a) return;
     if (a === 'voice') st.voice = e.target.checked;
@@ -431,6 +440,11 @@
     root.setAttribute('aria-label', 'Car Bingo');
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);
+    root.addEventListener('toggle', e => {
+      if (!st) return;
+      if (e.target.classList.contains('gv-more')) st.settingsOpen = e.target.open;
+      if (e.target.classList.contains('gv-check')) st.checkOpen = e.target.open;
+    }, true);
     document.body.appendChild(root);
     timer = setInterval(tick, 120);
     flushPending();

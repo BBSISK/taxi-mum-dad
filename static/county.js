@@ -55,7 +55,8 @@
     if (listener) listener.stop();
     listener = V.createListener({ onPhrases: hear, onState: setMic,
       onFatal: () => { st.voice = false; st.voiceProblem = true; render(); },
-      onPause: () => render(), onResume: () => render() });
+      onPause: () => render(), onResume: () => render(),
+      onModeChange: () => { st.fellBack = true; render(); } });
     listener.start();
   }
   function hear(alts) {
@@ -173,6 +174,7 @@
         <span class="bg-heard">${st.hint && !st.tapPlayer ? '<b>Tap who spotted it first</b>, then the county' : st.voiceProblem && !st.voice ? 'Voice unavailable: tap a name, then a county' : st.waitingFor ? `<b>${esc(st.waitingFor.name)}!</b> Who spotted it?` :
           st.lastHeard ? `Heard: “${esc(st.lastHeard)}”` : st.voice ? 'Shout: <i>“Jack, Kerry!”</i> or <i>“Jack, K Y!”</i>' : 'Tap who spotted it, then the county'}</span></div>
       ${st.voice && st.mic && st.mic.call ? `<p class="bg-warn">⏸️ Paused while you're on a call. Listening starts again when it ends.</p>` : ''}
+      ${st.fellBack ? `<p class="bg-warn">Radio-friendly listening didn't work on this phone, so it's push to talk: tap the big button, then shout.</p>` : ''}
       ${st.voice && listener && listener.mode === 'ptt' ? `<button id="cc-ptt" class="bg-btn big gv-ptt" data-c="ptt">🎤 Tap, then shout "Jack, Kerry!"</button>` : ''}
       <div class="bg-whobtns">${st.players.map(p => `<button class="bg-who ${st.tapPlayer === p ? 'on' : ''}" data-c="who" data-key="${p.type}-${p.id}">${esc(p.emoji)} ${esc(p.name)}</button>`).join('')}</div>
       ${st.tapPlayer ? `<p class="bg-small">${esc(st.tapPlayer.name)} spotted… tap the county</p>` : ''}
@@ -189,7 +191,7 @@
       <p class="bg-small">New county = double points (shown on the tile). Rarer counties score more. Each county counts once per trip. Say <i>“undo”</i> to take back a mistake.</p>
       <div class="bg-actions">${st.voice ? `<button class="bg-btn ghost" data-c="tapmode">✋ Tap instead</button>` : V.supported && !st.voiceProblem ? `<button class="bg-btn ghost" data-c="voicemode">🎤 Use voice</button>` : ''}
         <button class="bg-btn ghost" data-c="undo">↩️ Undo</button></div>
-      ${V.supported ? `<details class="gv-more" ${st.settingsOpen ? 'open' : ''}><summary>⚙️ Voice settings</summary>${V.settingsHtml('data-cs')}
+      ${V.supported ? `<details class="gv-more" ${st.settingsOpen ? 'open' : ''}><summary>⚙️ Voice settings</summary>${V.settingsHtml('data-cs').replace('<details class="gv-check">', `<details class="gv-check" ${st.checkOpen ? 'open' : ''}>`)}
         <p class="bg-small">“Always on (radio-friendly)” keeps the phone's mic open the whole time, so the car radio shouldn't keep cutting out. If it still does in your car, try push to talk.</p></details>` : ''}`;
     }
     root.innerHTML = `<div class="bg-sheet"><div class="bg-head"><span class="bg-title">🗺️ County Collector</span>
@@ -198,8 +200,8 @@
   }
 
   function onClick(e) {
-    const el = e.target.closest('[data-c]');
-    if (!el || !st) return;
+    const el = e.target.closest('[data-c],[data-cs]');
+    if (!el || !st || el.tagName === 'SELECT') return;
     const a = el.dataset.c;
     const byKey = k => st.players.find(p => p.type + '-' + p.id === k);
     if (a === 'close') close();
@@ -208,6 +210,7 @@
     else if (a === 'tapmode') { st.voice = false; listener && listener.stop(); render(); }
     else if (a === 'voicemode') { st.voice = true; startListener(); render(); }
     else if (a === 'ptt') listener && listener.push();
+    else if (el.dataset.cs) { V.handleSetting(el.dataset.cs); if (el.dataset.cs === 'vretry' && st.voice) { st.fellBack = false; startListener(); } render(); }
     else if (a === 'who') {
       const p = byKey(el.dataset.key);
       if (st.waitingFor) { claim(st.waitingFor, p); return; }
@@ -241,12 +244,16 @@
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-label', 'County Collector');
     root.addEventListener('click', onClick);
-    root.addEventListener('toggle', e => { if (st && e.target.classList.contains('gv-more')) st.settingsOpen = e.target.open; }, true);
+    root.addEventListener('toggle', e => {
+      if (!st) return;
+      if (e.target.classList.contains('gv-more')) st.settingsOpen = e.target.open;
+      if (e.target.classList.contains('gv-check')) st.checkOpen = e.target.open;
+    }, true);
     root.addEventListener('change', e => {
       const k = e.target.dataset && e.target.dataset.cs;
       if (!k || !st) return;
-      V.setPrefs(k === 'vmode' ? { mode: e.target.value } : { talk: e.target.value });
-      if (k === 'vmode' && st.voice) startListener();
+      V.handleSetting(k, e.target.value);
+      if (k === 'vmode' && st.voice) { st.fellBack = false; startListener(); }
       render();
     });
     document.body.appendChild(root);

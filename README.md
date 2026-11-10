@@ -82,6 +82,9 @@ A second in-car game (`county/` blueprint + `static/county.js`), opened from the
   feed that stream to the recogniser, so restarts never touch the car's audio. Other phones get push to talk. Spoken
   feedback defaults to "only when it needs an answer" ("Leitrim! Who spotted it?"); everything else is a buzz and the
   screen. During a phone call the games release the mic, pause (Car Bingo stops its clock) and resume afterwards.
+  A live check guards the radio-friendly mode: if the recogniser never receives audio from the open mic within four
+  seconds (some phones accept the API but don't use it), the game remembers that and switches to push to talk. A
+  "Voice check" panel shows the mic level and a log of recogniser events, with a copy button for bug reports.
 - **Privacy:** only "who spotted which county" reaches the server. No number plates, audio or transcripts are stored.
 
 ## Architecture

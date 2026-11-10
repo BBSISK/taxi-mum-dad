@@ -84,5 +84,10 @@
 .gv-more { margin-top: 14px; font-size: 14px; }
 .gv-more summary { cursor: pointer; font-weight: 900; padding: 6px 0; }
 .gv-settings { display: grid; gap: 8px; margin: 8px 0; }
-.gv-settings label { display: grid; gap: 4px; font-size: 13px; color: #4a453b; }
-.gv-settings select { font: 800 15px "Nunito", system-ui, sans-serif; padding: 10px; border: 3px solid #141414; border-radius: 12px; background: #fff; color: #141414; }
+.gv-settings label { min-width: 0; display: grid; gap: 4px; font-size: 13px; color: #4a453b; }
+.gv-settings select { width: 100%; max-width: 100%; box-sizing: border-box; min-width: 0; font: 800 15px "Nunito", system-ui, sans-serif; padding: 10px; border: 3px solid #141414; border-radius: 12px; background: #fff; color: #141414; }
+.gv-check { margin-top: 8px; }
+.gv-check summary { cursor: pointer; font-weight: 900; font-size: 13px; }
+.gv-meter { height: 12px; background: #e6dcc2; border-radius: 999px; overflow: hidden; margin: 6px 0; }
+.gv-meter span { display: block; height: 100%; background: #1f9d55; transition: width .2s; }
+.gv-log { font: 11px/1.4 ui-monospace, Menlo, monospace; background: #fff; border: 2px solid #e6dcc2; border-radius: 8px; padding: 6px; white-space: pre-wrap; max-height: 180px; overflow: auto; margin: 4px 0 8px; }
