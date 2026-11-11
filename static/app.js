@@ -1,4 +1,5 @@
 'use strict';
+const APP_VERSION = 14;
 /* Taxi of Mum & Dad - vanilla JS PWA. No build step, no framework. */
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -459,6 +460,13 @@ const VIEWS = {
       <a class="btn green" target="_blank" rel="noopener" href="${esc('https://wa.me/?text=' + encodeURIComponent(SHARE_TEXT()))}">💬 Share with other parents</a>
       ${navigator.share ? '<button class="btn white" style="margin-top:10px" data-act="shareApp">📤 More ways to share</button>' : ''}
     </div>
+    ${window.TaxiVoice && TaxiVoice.supported ? `<div class="card" id="game-voice">
+      <h2 style="margin-top:0">🎤 Game voice</h2>
+      <p class="small muted">How Car Bingo and County Collector listen in the car. Try "Test the mic" while parked with the radio on.</p>
+      ${TaxiVoice.settingsHtml('data-gv').replace('<details class="gv-check">', '<details class="gv-check" open>')}
+      <button class="btn white" data-act="micTest">${window.__micTest ? '⏹️ Stop the test' : '🧪 Test the mic (20 seconds)'}</button>
+      ${window.__micTest ? `<p class="small" style="margin:8px 0 0">Say "Jack, Kerry". Heard: <b id="mt-heard">${esc(window.__micHeard || '…')}</b></p>` : ''}
+    </div>` : ''}
     <div class="card">
       <h2 style="margin-top:0">🤝 Your co-driver</h2>
       <p class="small muted">Send this to Mum / Dad so you share one set of tabs.</p>
@@ -518,6 +526,7 @@ const VIEWS = {
       <p class="center" style="margin:6px 0 0"><button class="link" style="color:var(--red)" data-act="deleteFamily">Delete our family and all its data</button></p>
     </div>
     <p class="center"><button class="link" data-act="logout">Sign out on this phone</button></p>
+    <p class="center small muted">App version ${APP_VERSION}</p>
     ` + nav('settings');
   },
 
@@ -786,6 +795,21 @@ const ACTS = {
       ...(S?.me ? [{ type: 'parent', id: S.me.id, name: S.me.name, emoji: S.me.emoji }] : [])];
     window.TaxiBingo.open({ players, onClose: () => refresh().catch(() => {}) });
   },
+  micTest() {
+    const V = window.TaxiVoice;
+    const stop = () => { if (window.__micTest) { window.__micTest.stop(); window.__micTest = null; clearTimeout(window.__micTimer); } if (view.name === 'settings') { const y = window.scrollY; render(); window.scrollTo(0, y); } };
+    if (window.__micTest) { stop(); return; }
+    window.__micHeard = '';
+    window.__micTest = V.createListener({
+      onPhrases: alts => { window.__micHeard = alts[0]; const h = $('#mt-heard'); if (h) h.textContent = alts[0]; },
+      onFatal: why => { toast('Mic problem: ' + why); stop(); },
+      onModeChange: () => { toast('Open mic didn\'t work: switched to push to talk'); stop(); },
+    });
+    window.__micTest.start();
+    if (window.__micTest.mode === 'ptt') window.__micTest.push();
+    window.__micTimer = setTimeout(stop, 20000);
+    const y = window.scrollY; render(); window.scrollTo(0, y);
+  },
   openCounty() {
     const m = LS.get('taxi.meter');
     if (!m || !window.TaxiCounty) return;
@@ -943,7 +967,18 @@ document.addEventListener('input', e => {
     $('#e-total').textContent = total;
   }
 });
+document.addEventListener('click', e => {
+  const b = e.target.closest('button[data-gv]');
+  if (!b || !window.TaxiVoice) return;
+  TaxiVoice.handleSetting(b.dataset.gv);
+  if (view.name === 'settings') { const y = window.scrollY; render(); window.scrollTo(0, y); }
+});
 document.addEventListener('change', async e => {
+  if (e.target.dataset.gv && window.TaxiVoice) {
+    TaxiVoice.handleSetting(e.target.dataset.gv, e.target.value);
+    const y = window.scrollY; render(); window.scrollTo(0, y);
+    return;
+  }
   const id = e.target.dataset.taskCredits;
   if (!id) return;
   try { await api(`/api/tasks/${id}`, { method: 'PATCH', body: { credits: +e.target.value } }); await refresh(); toast('Job value updated'); } catch (err) { oops(err); }

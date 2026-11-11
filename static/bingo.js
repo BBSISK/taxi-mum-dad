@@ -303,6 +303,7 @@
     const head = `<div class="bg-head"><span class="bg-title">🎯 Car Bingo</span>
       ${st.cfg ? `<span class="bg-level">Level ${st.cfg.level}</span>` : ''}
       ${st.phase === 'play' ? `<span class="bg-time" id="bg-time">${mmss((st.roundEnd - Date.now()) / 1000)}</span>` : ''}
+      ${Rec && (st.phase === 'play' || st.phase === 'ready') ? `<button class="bg-x" data-b="gear" aria-label="Voice settings">⚙️</button>` : ''}
       <button class="bg-x" data-b="close" aria-label="Close Car Bingo">✕</button></div>`;
 
     if (st.phase === 'loading') body = `<div class="bg-center"><div class="bg-big">🎲</div><p>Dealing a card…</p></div>`;
@@ -390,6 +391,7 @@
     else if (a === 'teach') teachName(byKey(el.dataset.key));
     else if (a === 'tapmode') { st.voice = false; pauseListening(); render(); }
     else if (a === 'ptt') listener && listener.push();
+    else if (a === 'gear') { st.settingsOpen = true; render(); document.querySelector('#bingo-root .gv-more, #bingo-root .gv-settings')?.scrollIntoView({ behavior: 'smooth' }); }
     else if (a === 'who') {
       const p = byKey(el.dataset.key);
       if (st.waitingFor) { award(st.waitingFor, p); return; }

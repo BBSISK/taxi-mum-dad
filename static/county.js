@@ -195,6 +195,7 @@
         <p class="bg-small">“Always on (radio-friendly)” keeps the phone's mic open the whole time, so the car radio shouldn't keep cutting out. If it still does in your car, try push to talk.</p></details>` : ''}`;
     }
     root.innerHTML = `<div class="bg-sheet"><div class="bg-head"><span class="bg-title">🗺️ County Collector</span>
+      ${V.supported ? `<button class="bg-x" data-c="gear" aria-label="Voice settings">⚙️</button>` : ''}
       <button class="bg-x" data-c="close" aria-label="Close County Collector">✕</button></div>${body}</div>`;
     setMic();
   }
@@ -210,6 +211,7 @@
     else if (a === 'tapmode') { st.voice = false; listener && listener.stop(); render(); }
     else if (a === 'voicemode') { st.voice = true; startListener(); render(); }
     else if (a === 'ptt') listener && listener.push();
+    else if (a === 'gear') { st.settingsOpen = true; render(); document.querySelector('#county-root .gv-more')?.scrollIntoView({ behavior: 'smooth' }); }
     else if (el.dataset.cs) { V.handleSetting(el.dataset.cs); if (el.dataset.cs === 'vretry' && st.voice) { st.fellBack = false; startListener(); } render(); }
     else if (a === 'who') {
       const p = byKey(el.dataset.key);

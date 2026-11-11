@@ -361,7 +361,7 @@
     if (key === 'vmode') setPrefs({ mode: value });
     else if (key === 'vtalk') setPrefs({ talk: value });
     else if (key === 'vretry') { LS.set(BROKEN_KEY, false); trackSupport = null; setPrefs({ mode: 'auto' }); note('radio-friendly reset: will try again'); }
-    else if (key === 'vcopy') { try { navigator.clipboard.writeText(diagText()); note('voice check copied'); } catch { /* ignore */ } }
+    else if (key === 'vcopy') { try { navigator.clipboard.writeText(diagText()).then(() => note('voice check copied: paste it to Claude'), () => note('copy blocked: long-press the log to copy it')); } catch { note('copy blocked: long-press the log to copy it'); } }
     else return false;
     return true;
   }
