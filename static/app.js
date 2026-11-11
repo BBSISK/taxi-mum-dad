@@ -248,6 +248,11 @@ const VIEWS = {
     <div class="card"><div class="cc-home"><span style="width:${Math.round(100 * S.county.counties_collected / S.county.counties_total)}%"></span></div>
       ${(S.county.leaderboard || []).length ? `<p class="small" style="margin:8px 0 0">${S.county.leaderboard.map((p, i) => `${i === 0 ? '👑 ' : ''}${esc(p.emoji)} ${esc(p.name)} <b>${p.points}</b>`).join(' · ')}</p>` : ''}</div>` : ''}
 
+    ${S.detwist && S.kids.length ? `<h2>DeTwist 🪢 <span class="small muted">today's puzzle · passengers only</span></h2>
+    <div class="card"><p class="small" style="margin:0 0 8px">${S.detwist.best ? `Best today: ${esc(S.detwist.best.emoji)} ${esc(S.detwist.best.name)} <b>${S.detwist.best.moves}</b> moves (par ${S.detwist.best.par})`
+      : 'Nobody has untwisted today\'s board yet.'}${S.detwist.streak > 1 ? ` · 🔥 ${S.detwist.streak} days` : ''}</p>
+      <button class="btn" data-act="openDetwist">🪢 Play today's DeTwist</button></div>` : ''}
+
     <h2>Driver of the month 🏆</h2>
     <div class="league">${drivers.map(d => `
       <div class="card">
@@ -339,6 +344,7 @@ const VIEWS = {
       <div class="games-row">
         <button class="btn bingo-open" data-act="openBingo">🎯 Car Bingo <small>hands-free I-spy</small></button>
         <button class="btn bingo-open" data-act="openCounty">🗺️ Counties <small>spot the plates</small></button>
+        <button class="btn bingo-open" data-act="openDetwist">🪢 DeTwist <small>passengers only</small></button>
       </div>
       <button class="btn dark stop" data-act="stopMeter">🛑 STOP &amp; PRINT</button>
       <p class="small muted center tip">Eyes on the road 👀 Let the front-seat passenger tap the charges (they'll love billing their sibling).</p>
@@ -816,6 +822,14 @@ const ACTS = {
     const players = [...m.kids.map(k => ({ type: 'kid', id: k.id, name: k.name, emoji: k.emoji })),
       ...(S?.me ? [{ type: 'parent', id: S.me.id, name: S.me.name, emoji: S.me.emoji }] : [])];
     window.TaxiCounty.open({ players, tripKey: m.startedAt, onClose: () => refresh().catch(() => {}) });
+  },
+  openDetwist() {
+    if (!window.TaxiDetwist) return;
+    const m = LS.get('taxi.meter');
+    const kids = (m?.kids || S?.kids || []);
+    const players = [...kids.map(k => ({ type: 'kid', id: k.id, name: k.name, emoji: k.emoji })),
+      ...(S?.me ? [{ type: 'parent', id: S.me.id, name: S.me.name, emoji: S.me.emoji }] : [])];
+    window.TaxiDetwist.open({ players, onClose: () => refresh().catch(() => {}) });
   },
   liveUndo() {
     const m = LS.get('taxi.meter'); if (!m || !m.extras?.length) return;

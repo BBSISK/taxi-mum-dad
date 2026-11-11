@@ -282,5 +282,6 @@ body:has(.onboard) #toast.show { transform: translate(-50%, 0); }
 
 .drive .games-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .drive .games-row .bingo-open { margin: 0; }
+.drive .games-row .bingo-open:nth-child(3) { grid-column: 1 / -1; }
 .cc-home { height: 14px; background: #eee3c6; border-radius: 999px; overflow: hidden; }
 .cc-home span { display: block; height: 100%; background: #1f9d55; }

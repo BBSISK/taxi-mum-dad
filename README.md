@@ -87,6 +87,22 @@ A second in-car game (`county/` blueprint + `static/county.js`), opened from the
   "Voice check" panel shows the mic level and a log of recogniser events, with a copy button for bug reports.
 - **Privacy:** only "who spotted which county" reaches the server. No number plates, audio or transcripts are stored.
 
+## DeTwist (daily puzzle, passengers only)
+
+A third game (`detwist/` blueprint + `static/detwist.js`), opened from the running meter or the Home screen. It is not hands-free.
+
+- **The puzzle:** coloured bands are strung between pins on a round board. Drag one end of a band to an empty pin within
+  reach. A band that crosses nothing (on woven days: lies over everything it crosses) pops free. Clear the board in as
+  few moves as you can. Par comes from a solver; three stars means par or better, a hint caps the score at two.
+- **One board a day:** the server picks the day (Europe/Dublin), so a phone clock can't unlock tomorrow. Boards are
+  pre-built in `detwist/boards.json` by `node tools/make_detwist_boards.js <YYYY-MM-DD> <days>` (currently to 2027-12-31;
+  later dates reuse a board from the same weekday).
+- **Fair scores:** the phone sends its list of moves and the server replays them with the real rules (`detwist/rules.py`)
+  before saving. The first finish per player per day counts; replays are practice. Offline results queue and are sent
+  up to 2 days late.
+- **Leaderboards:** family board with names; an everyone view that is numbers only (rank, players, top scores).
+- **Privacy:** results are included in the data export and deleted with a child or the family.
+
 ## Architecture
 
 ```

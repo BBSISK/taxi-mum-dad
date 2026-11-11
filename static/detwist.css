@@ -1,0 +1,37 @@
+/* DeTwist overlay: reuses the .bg-* look from bingo.css, adds the pin board */
+#detwist-root { position: fixed; inset: 0; z-index: 30; background: rgba(20, 20, 20, .55); display: flex; align-items: stretch; justify-content: center;
+  --felt: #1f3b34; --felt-hi: #2c5247; --felt-rim: #8a5a2b; --pin: #e9e2d0; --pin-hi: #ffc20e; --shadow: #0b1512; --dot: #fff8e6;
+  --b1: #e5484d; --b2: #f5a623; --b3: #f2d13a; --b4: #3ec97b; --b5: #2fb7c9; --b6: #4b8bf5; --b7: #8e63e6; --b8: #e964b4; --b9: #ff7a45; --b10: #9bd13b; }
+#detwist-root .bg-sheet { touch-action: pan-y; }
+.dt-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+.dt-stats > div { background: #fff; border: 3px solid #141414; border-radius: 12px; text-align: center; padding: 4px 0; }
+.dt-stats label { display: block; font-size: 11px; text-transform: uppercase; color: #6d6658; }
+.dt-stats output { font-family: "Bungee", Impact, sans-serif; font-size: 22px; }
+.dt-stats output.over { color: #d64545; }
+.dt-stats small { font-size: 12px; color: #6d6658; }
+.dt-boardwrap { width: 100%; max-width: 440px; margin: 0 auto; }
+#dt-svg { width: 100%; height: auto; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+.dt-band { fill: none; stroke-linecap: round; }
+.dt-band.free { filter: drop-shadow(0 0 5px #fff); }
+.dt-pulse { fill: none; stroke: var(--pin-hi); stroke-width: 3; animation: dtpulse 1s ease-in-out infinite; }
+@keyframes dtpulse { 50% { opacity: .25; } }
+.dt-ghost { fill: none; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; animation: dtretract .45s ease-in forwards; opacity: 0; animation-fill-mode: both; }
+@keyframes dtretract { 0% { opacity: 1; stroke-dashoffset: 0; } 100% { opacity: 0; stroke-dashoffset: 1; } }
+.dt-burst { fill: none; stroke-width: 3; opacity: 0; animation: dtburst .5s ease-out both; transform-box: fill-box; transform-origin: center; }
+@keyframes dtburst { 0% { opacity: 1; transform: scale(.4); } 100% { opacity: 0; transform: scale(2.2); } }
+.dt-stars { font-size: 30px; letter-spacing: 2px; color: #d9d0b8; }
+.dt-stars .on { color: #ffc20e; text-shadow: 0 1px 0 #141414; }
+.dt-board-list .dt-stars, .bg-who .dt-stars { font-size: 14px; letter-spacing: 0; }
+.dt-score { font-size: 17px; margin: 6px 0; }
+.dt-rank { font-size: 15px; margin: 6px 0; }
+.dt-h { font-family: "Bungee", Impact, sans-serif; font-weight: 400; font-size: 16px; margin: 14px 0 6px; }
+.dt-board-list { list-style: none; padding: 0; margin: 0 0 8px; }
+.dt-board-list li { display: grid; grid-template-columns: 1fr auto auto; gap: 2px 8px; align-items: center; padding: 6px 4px; border-bottom: 2px dashed #e6dcc2; font-size: 15px; }
+.dt-board-list .dt-time { grid-column: 1 / -1; font-size: 12px; color: #6d6658; }
+.bg-who small.dt-done { display: block; font-size: 12px; font-weight: 700; color: #6d6658; }
+.dt-rule { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.dt-rule figure { margin: 0; background: #fff; border: 2px solid #141414; border-radius: 12px; padding: 6px; font-size: 12px; line-height: 1.3; }
+.dt-rule svg { width: 100%; height: auto; display: block; margin-bottom: 4px; }
+.center { text-align: center; }
+@media (prefers-reduced-motion: reduce) { #detwist-root * { animation: none !important; transition: none !important; } }
+.dt-play { grid-template-columns: 1fr 1fr 1.3fr; } .dt-play .bg-btn { padding: 0 4px; font-size: 15px; }
