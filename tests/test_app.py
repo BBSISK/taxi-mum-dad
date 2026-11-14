@@ -330,3 +330,16 @@ def test_undo_confirmed_promise_reopens_it(app, mum):
     assert r.status_code == 200 and r.get_json()["promise_reopened"] is True
     assert [p["id"] for p in state(mum)["promises"]] == [pid]
     assert state(mum)["kids"][0]["balance"] == 19
+
+
+def test_drive_showcase_page_counts_refs_and_has_link_preview(app):
+    c = app.test_client()
+    r = c.get("/drive?ref=linkedin")
+    html = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert 'og:image' in html and "og-drive.png" in html and "/?ref=drive" in html
+    assert "googleapis" not in html and "jsdelivr" not in html  # everything self-hosted
+    assert c.get("/static/vendor/three-0.149.0.min.js").status_code == 200
+    from models import Event
+    with app.app_context():
+        assert Event.query.filter_by(kind="visit", ref="linkedin").count() == 1

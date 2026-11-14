@@ -1,6 +1,6 @@
 /* Taxi of Mum & Dad service worker: app shell offline, API always live. */
 const CACHE = 'taxi-v15';
-const SHELL = ['/', '/static/style.css?v=15', '/static/app.js?v=15', '/static/bingo.js?v=15', '/static/bingo.css?v=15', '/static/games-core.js?v=15', '/static/county.js?v=15', '/static/detwist.js?v=15', '/static/detwist.css?v=15', '/static/icons/icon-192.png', '/static/fonts/bungee-400.woff2', '/static/fonts/nunito-800.woff2', '/manifest.webmanifest'];
+const SHELL = ['/', '/static/style.css?v=15', '/static/app.js?v=15', '/static/bingo.js?v=15', '/static/bingo.css?v=15', '/static/games-core.js?v=15', '/static/county.js?v=15', '/static/icons/icon-192.png', '/static/fonts/bungee-400.woff2', '/static/fonts/nunito-800.woff2', '/manifest.webmanifest'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -15,10 +15,14 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/r/')) return; // always live
+  if (url.pathname === '/drive' || url.pathname.startsWith('/static/vendor/')) return; // showcase page: plain network
 
   if (e.request.mode === 'navigate') {
+    // Only the app itself is the offline shell; other pages (privacy, terms) must never replace it.
+    const isApp = url.pathname === '/';
     e.respondWith(fetch(e.request).then(res => {
-      const copy = res.clone(); caches.open(CACHE).then(c => c.put('/', copy)); return res;
+      if (isApp && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put('/', copy)); }
+      return res;
     }).catch(() => caches.match('/')));
     return;
   }

@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1726">
+<title>Taxi of Mum &amp; Dad: every lift goes on the tab</title>
+<meta name="description" content="Run the meter on the school run, send the kids a cheeky receipt, and let them pay it off with jobs. A free family app for Irish parents.">
+<link rel="canonical" href="{{ url_for('drive', _external=True) }}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="🚕 Every lift goes on the tab">
+<meta property="og:description" content="Run the meter on the school run, send a cheeky receipt, and let the kids pay it off with jobs. Free for parents.">
+<meta property="og:image" content="{{ url_for('static', filename='og-drive.png', _external=True) }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="{{ url_for('drive', _external=True) }}">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+<link rel="preload" href="{{ url_for('static', filename='fonts/bungee-400.woff2') }}" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face { font-family: "Bungee"; src: url("{{ url_for('static', filename='fonts/bungee-400.woff2') }}") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Nunito"; src: url("{{ url_for('static', filename='fonts/nunito-600.woff2') }}") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Nunito"; src: url("{{ url_for('static', filename='fonts/nunito-800.woff2') }}") format("woff2"); font-weight: 800; font-display: swap; }
+@font-face { font-family: "Nunito"; src: url("{{ url_for('static', filename='fonts/nunito-900.woff2') }}") format("woff2"); font-weight: 900; font-display: swap; }
+/* Layout: one night-drive scene as the hero, copy pinned over its left half; a short "how a lift works" strip and the games below. */
+:root {
+  --night: #0d1726;      /* Irish evening sky, blue-black */
+  --dusk: #1b2c44;       /* lower sky / panels */
+  --cab: #ffc20e;        /* the app's taxi yellow */
+  --ink: #f4f1e8;        /* text on night */
+  --muted: #a9b6c8;      /* secondary text */
+  --tarmac: #26303d;
+  --display: "Bungee", Impact, "Arial Black", sans-serif;
+  --body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { background: var(--night); color: var(--ink); margin: 0; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+[hidden] { display: none !important; }
+body { font-family: var(--body); font-weight: 600; line-height: 1.5; }
+a { color: inherit; }
+.hero { position: relative; min-height: min(760px, 92vh); overflow: hidden; isolation: isolate; }
+#scene, .still { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: -1; }
+.still { object-fit: cover; object-position: 70% 50%; }
+.hero::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(90deg, rgba(13, 23, 38, .92) 0%, rgba(13, 23, 38, .55) 38%, rgba(13, 23, 38, 0) 62%); }
+.wrap { max-width: 1160px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.copy { padding-block: clamp(40px, 9vh, 96px) 40px; max-width: 34rem; display: grid; gap: 18px; }
+.plate { justify-self: start; font-family: var(--display); font-size: 13px; letter-spacing: .08em; color: #141414; background: var(--cab);
+  padding: 6px 12px; border-radius: 6px; border: 2px solid #141414; box-shadow: 0 0 0 2px var(--cab); }
+h1 { font-family: var(--display); font-weight: 400; font-size: clamp(38px, 6.4vw, 72px); line-height: .98; margin: 0; text-wrap: balance; }
+h1 em { font-style: normal; color: var(--cab); }
+.lede { font-size: clamp(17px, 2vw, 20px); color: var(--ink); max-width: 30rem; margin: 0; }
+.cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.cta { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 900; font-size: 18px; color: #141414; background: var(--cab);
+  padding: 14px 22px; border-radius: 14px; border: 3px solid #141414; box-shadow: 0 5px 0 #141414; transition: transform .1s, box-shadow .1s; }
+.cta:hover { transform: translateY(-2px); box-shadow: 0 7px 0 #141414; }
+.cta:active { transform: translateY(3px); box-shadow: 0 2px 0 #141414; }
+.cta:focus-visible, .ghost:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.ghost { color: var(--ink); font-weight: 800; text-decoration: underline; text-underline-offset: 4px; }
+.free { font-size: 14px; color: var(--muted); margin: 0; }
+.ticker { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.chip { font-size: 13px; font-weight: 800; background: rgba(255, 194, 14, .12); border: 1px solid rgba(255, 194, 14, .45); color: var(--ink); padding: 5px 10px; border-radius: 999px; }
+.chip b { color: var(--cab); }
+.hint { position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); bottom: 14px; font-size: 12px; color: var(--muted); margin: 0; }
+
+section.steps { background: var(--dusk); padding-block: 56px; }
+.steps h2, .games h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 3.4vw, 34px); margin: 0 0 24px; text-wrap: balance; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+.step { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.step .n { font-family: var(--display); font-size: 15px; color: #141414; background: var(--cab); width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; }
+.step h3 { margin: 4px 0 0; font-size: 20px; font-weight: 900; }
+.step p { margin: 0; color: var(--muted); }
+.receipt { font: 600 13px/1.45 ui-monospace, "SFMono-Regular", Menlo, monospace; background: #fbf8ef; color: #222; padding: 12px 14px; border-radius: 4px; max-width: 260px;
+  -webkit-mask: radial-gradient(circle 6px at 8px 100%, transparent 98%, #000) -8px 0/16px 100% repeat-x; mask: radial-gradient(circle 6px at 8px 100%, transparent 98%, #000) -8px 0/16px 100% repeat-x; padding-bottom: 18px; }
+.receipt div { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+.receipt .t { border-top: 1px dashed #999; margin-top: 6px; padding-top: 6px; font-weight: 800; }
+
+section.games { padding-block: 56px 72px; }
+.game { border: 2px solid rgba(255, 194, 14, .5); border-radius: 16px; padding: 18px; display: grid; gap: 6px; min-width: 0; }
+.game h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 20px; color: var(--cab); }
+.game p { margin: 0; color: var(--muted); }
+footer { padding-block: 24px 36px; border-top: 1px solid rgba(169, 182, 200, .2); color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
+
+@media (max-width: 720px) {
+  .hero { min-height: 780px; }
+  .hero::after { background: linear-gradient(180deg, rgba(13, 23, 38, .94) 0%, rgba(13, 23, 38, .7) 46%, rgba(13, 23, 38, 0) 70%); }
+  .copy { padding-block: 32px 340px; }
+  .ticker { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .cta { transition: none; } }
+</style>
+
+</head>
+<body>
+<header class="hero">
+  <img class="still" id="still" src="{{ url_for('static', filename='drive-still.jpg') }}" alt="" hidden>
+  <canvas id="scene" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <div class="copy">
+      <span class="plate">TAXI OF MUM &amp; DAD</span>
+      <h1>Every lift goes on <em>the tab.</em></h1>
+      <p class="lede">Run the meter on the school run, send the kids a cheeky receipt on WhatsApp, and let them pay it off with jobs: the dishes, a tidy room, or a visit to Granny.</p>
+      <div class="cta-row">
+        <a class="cta" href="/?ref=drive">🚕 Start your taxi firm</a>
+        <a class="ghost" href="#how">How a lift works</a>
+      </div>
+      <p class="free">Free for parents. No app store, no kid accounts. Hosted in the EU.</p>
+      <div class="ticker" aria-label="Example surcharges">
+        <span class="chip">🙄 Backseat driver <b>+3</b></span>
+        <span class="chip">🎵 Music takeover <b>+2</b></span>
+        <span class="chip">🍟 Drive-thru <b>+3</b></span>
+      </div>
+    </div>
+  </div>
+  <p class="hint" id="hint">Drag to look around</p>
+</header>
+
+<section class="steps" id="how">
+  <div class="wrap">
+    <h2>How a lift works</h2>
+    <div class="grid">
+      <div class="step"><span class="n">1</span><h3>Start the meter</h3><p>Tap Start trip. The phone times the run and counts the kilometres, and the front-seat passenger bills extras as they happen.</p></div>
+      <div class="step"><span class="n">2</span><h3>Print the receipt</h3><p>At the gate, the fare lands on the kid's tab and a receipt goes to them by WhatsApp or QR code. They rate the driver back.</p>
+        <div class="receipt" aria-label="Example receipt">
+          <div><span>Flag fall</span><span>3.0</span></div>
+          <div><span>8.0 km × 0.5</span><span>4.0</span></div>
+          <div><span>15 min × 0.2</span><span>3.0</span></div>
+          <div><span>Backseat driver</span><span>3.0</span></div>
+          <div class="t"><span>Taxi Tokens</span><span>13</span></div>
+        </div></div>
+      <div class="step"><span class="n">3</span><h3>Pay it off</h3><p>Kids sign up for a job on the receipt with a finger signature. Credits only come off when a parent confirms it was done.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="games">
+  <div class="wrap">
+    <h2>Games for the journey</h2>
+    <div class="grid">
+      <div class="game"><h3>Car Bingo</h3><p>Memorise the list, then it hides. Shout "Jack, red door!" when you spot one. Clear the card and the next one gets harder.</p></div>
+      <div class="game"><h3>County Collector</h3><p>Spot a KY plate, say "Kerry", and fill the family passport. Collect all 26 counties.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap"><span>Taxi of Mum &amp; Dad · made in Limerick</span><span><a href="/?ref=drive">Open the app</a> · <a href="/privacy">Privacy</a></span></div></footer>
+
+<script src="{{ url_for('static', filename='vendor/three-0.149.0.min.js') }}" defer></script>
+<script>
+window.addEventListener('DOMContentLoaded', function () {
+  'use strict';
+  const canvas = document.getElementById('scene');
+  const still = () => { document.getElementById('hint').hidden = true; canvas.hidden = true; document.getElementById('still').hidden = false; };
+  if (!window.THREE) { still(); return; }
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const T = THREE;
+  let renderer;
+  try { renderer = new T.WebGLRenderer({ canvas, antialias: true, alpha: false }); } catch (e) { still(); return; }  // no 3D on this device
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = T.PCFSoftShadowMap;
+  renderer.outputEncoding = T.sRGBEncoding;
+  renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+
+  const scene = new T.Scene();
+  scene.background = new T.Color(0x0d1726);
+  scene.fog = new T.Fog(0x0d1726, 22, 70);
+  const camera = new T.PerspectiveCamera(38, 1, 0.1, 200);
+
+  /* ---------- helpers ---------- */
+  const mat = (c, o = {}) => new T.MeshStandardMaterial({ color: c, roughness: .7, metalness: .05, ...o });
+  function canvasTex(w, h, draw) {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); draw(g, w, h);
+    const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = 4;
+    t.userData = { c, g }; return t;
+  }
+  function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  const FONT_D = '"Bungee", Impact, "Arial Black", sans-serif';
+  const FONT_B = '"Nunito", system-ui, sans-serif';
+
+  /* ---------- lights ---------- */
+  scene.add(new T.HemisphereLight(0x6f8fc4, 0x10141c, 0.32));
+  const moon = new T.DirectionalLight(0xa9c2f0, 0.32);
+  moon.position.set(-12, 18, 8); moon.castShadow = true;
+  moon.shadow.mapSize.set(1024, 1024);
+  Object.assign(moon.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 1, far: 50 });
+  scene.add(moon);
+
+  /* ---------- road and verges ---------- */
+  const SEG = 80;
+  const roadTex = canvasTex(256, 512, (g, w, h) => {
+    g.fillStyle = '#2a3340'; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 1400; i++) { g.fillStyle = `rgba(255,255,255,${Math.random() * .05})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+    g.fillStyle = '#f2efe4'; g.fillRect(w / 2 - 5, 40, 10, 180); g.fillRect(w / 2 - 5, 296, 10, 180);
+    g.fillStyle = '#d9b400'; g.fillRect(14, 0, 8, h); g.fillRect(w - 22, 0, 8, h);   // Irish yellow edge lines
+  });
+  roadTex.wrapS = roadTex.wrapT = T.RepeatWrapping; roadTex.repeat.set(1, SEG / 8);
+  const road = new T.Mesh(new T.PlaneGeometry(7, SEG), mat(0xffffff, { map: roadTex, roughness: .45, metalness: .1 }));
+  road.rotation.x = -Math.PI / 2; road.receiveShadow = true; scene.add(road);
+  const verge = mat(0x1d3b2a);
+  [-1, 1].forEach(s => {
+    const v = new T.Mesh(new T.PlaneGeometry(30, SEG), verge); v.rotation.x = -Math.PI / 2; v.position.set(s * 18.5, -0.01, 0); v.receiveShadow = true; scene.add(v);
+    const kerb = new T.Mesh(new T.BoxGeometry(.4, .18, SEG), mat(0x5d636b)); kerb.position.set(s * 3.7, .09, 0); kerb.receiveShadow = true; scene.add(kerb);
+    const path = new T.Mesh(new T.PlaneGeometry(2.4, SEG), mat(0x353a42)); path.rotation.x = -Math.PI / 2; path.position.set(s * 5.1, .005, 0); path.receiveShadow = true; scene.add(path);
+  });
+
+  /* ---------- scenery that streams past: terraced houses with Georgian doors, lamps, hedges ---------- */
+  const DOORS = [0xc8102e, 0x1f6f43, 0x214f9a, 0xf2b705, 0x7a2e8c, 0x0f7b7b, 0xe06c1b];
+  const WALLS = [0x9c9584, 0x8f8268, 0x7f8f96, 0x9a8172, 0x88927e, 0xa39a7c];
+  const movers = [];
+  const LOOP = 72;
+  function house(x, z, side) {
+    const g = new T.Group();
+    const w = 3.4 + Math.random() * .8, h = 3.2 + Math.random() * 1.4;
+    const body = new T.Mesh(new T.BoxGeometry(2.6, h, w), mat(WALLS[Math.floor(Math.random() * WALLS.length)]));
+    body.position.y = h / 2; body.castShadow = body.receiveShadow = true; g.add(body);
+    const roof = new T.Mesh(new T.CylinderGeometry(0.01, 1.9, 1.3, 4, 1), mat(0x3b3f47, { roughness: .9 }));
+    roof.rotation.y = Math.PI / 4; roof.scale.set(1, 1, w / 2.6); roof.position.y = h + .62; roof.castShadow = true; g.add(roof);
+    const face = side * -1.31;
+    const door = new T.Mesh(new T.BoxGeometry(.06, 1.4, .8), mat(DOORS[Math.floor(Math.random() * DOORS.length)], { roughness: .4 }));
+    door.position.set(face, .7, 0); g.add(door);
+    const fan = new T.Mesh(new T.CylinderGeometry(.4, .4, .07, 16, 1, false, 0, Math.PI), mat(0xffd27a, { emissive: 0xffb84d, emissiveIntensity: .9 }));
+    fan.rotation.set(0, 0, Math.PI / 2); fan.rotation.y = side > 0 ? 0 : Math.PI; fan.position.set(face, 1.42, 0); g.add(fan);
+    for (const dz of [-w / 2 + .7, w / 2 - .7]) for (const y of [1.0, h - .9]) {
+      const lit = Math.random() < .55;
+      const win = new T.Mesh(new T.BoxGeometry(.05, .8, .6), mat(lit ? 0xffd690 : 0x223047, lit ? { emissive: 0xffb45e, emissiveIntensity: 1.1 } : { roughness: .2, metalness: .4 }));
+      win.position.set(face, y, dz); g.add(win);
+    }
+    g.position.set(x, 0, z); scene.add(g); movers.push(g);
+  }
+  function lamp(x, z) {
+    const g = new T.Group();
+    const pole = new T.Mesh(new T.CylinderGeometry(.06, .08, 4.2, 8), mat(0x2e3440, { metalness: .6, roughness: .4 }));
+    pole.position.y = 2.1; pole.castShadow = true; g.add(pole);
+    const arm = new T.Mesh(new T.BoxGeometry(Math.sign(-x) * .9 || .9, .06, .06), pole.material); arm.position.set(Math.sign(-x) * .45, 4.15, 0); g.add(arm);
+    const head = new T.Mesh(new T.SphereGeometry(.2, 12, 8), new T.MeshBasicMaterial({ color: 0xffd98a }));
+    head.position.set(Math.sign(-x) * .9, 4.05, 0); g.add(head);
+    const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: 0xffc46b, transparent: true, depthWrite: false, blending: T.AdditiveBlending }));
+    glow.scale.set(2.6, 2.6, 1); glow.position.copy(head.position); g.add(glow);
+    const pool = new T.Mesh(new T.CircleGeometry(1.8, 24), new T.MeshBasicMaterial({ map: glowTex, color: 0xffb85c, transparent: true, opacity: .35, depthWrite: false, blending: T.AdditiveBlending }));
+    pool.rotation.x = -Math.PI / 2; pool.position.set(Math.sign(-x) * .9, .02, 0); g.add(pool);
+    g.position.set(x, 0, z); scene.add(g); movers.push(g);
+  }
+  const glowTex = canvasTex(128, 128, (g, w) => { const r = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.4, 'rgba(255,255,255,.35)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, w, w); });
+  function hedge(x, z) {
+    const m = new T.Mesh(new T.BoxGeometry(.9, .9 + Math.random() * .4, 2.6 + Math.random()), mat(0x2f5d3a, { roughness: 1 }));
+    m.position.set(x, .5, z); m.castShadow = m.receiveShadow = true; scene.add(m); movers.push(m);
+  }
+  for (let z = -LOOP / 2; z < LOOP / 2; z += 4.6) { house(-11, z, -1); house(11, z + 2.3, 1); }
+  for (let z = -LOOP / 2; z < LOOP / 2; z += 9) { lamp(-4.2, z); lamp(4.2, z + 4.5); }
+  for (let z = -LOOP / 2; z < LOOP / 2; z += 3.4) { hedge(-6.9, z); hedge(6.9, z + 1.7); }
+
+  // stars
+  const starGeo = new T.BufferGeometry(), pts = [];
+  for (let i = 0; i < 500; i++) { const a = Math.random() * Math.PI * 2, r = 60 + Math.random() * 30; pts.push(Math.cos(a) * r, 12 + Math.random() * 40, Math.sin(a) * r); }
+  starGeo.setAttribute('position', new T.Float32BufferAttribute(pts, 3));
+  scene.add(new T.Points(starGeo, new T.PointsMaterial({ color: 0xdfe8ff, size: .25, fog: false })));
+
+  /* ---------- the taxi ---------- */
+  const taxi = new T.Group(); scene.add(taxi);
+  const yellow = mat(0xffc20e, { roughness: .32, metalness: .25 });
+  const black = mat(0x141414, { roughness: .5 });
+  const glass = new T.MeshStandardMaterial({ color: 0x0f1e30, roughness: .08, metalness: .9 });
+  const chequer = canvasTex(512, 64, (g, w, h) => { const s = 16; for (let x = 0; x < w / s; x++) for (let y = 0; y < h / s; y++) { g.fillStyle = (x + y) % 2 ? '#141414' : '#ffc20e'; g.fillRect(x * s, y * s, s, s); } });
+  const body = new T.Mesh(new T.BoxGeometry(2.0, .78, 4.3), yellow); body.position.y = .72; body.castShadow = true; taxi.add(body);
+  const cab = new T.Mesh(new T.BoxGeometry(1.78, .68, 2.3), yellow); cab.position.set(0, 1.42, -.15); cab.castShadow = true; taxi.add(cab);
+  [[-.905, 0], [.905, 0]].forEach(([x]) => {
+    const sideWin = new T.Mesh(new T.BoxGeometry(.02, .5, 2.05), glass); sideWin.position.set(x * 0.985, 1.45, -.15); taxi.add(sideWin);
+    const strip = new T.Mesh(new T.PlaneGeometry(4.2, .26), new T.MeshStandardMaterial({ map: chequer, roughness: .5 }));
+    strip.rotation.y = x > 0 ? Math.PI / 2 : -Math.PI / 2; strip.position.set(x * 1.11, .78, 0); taxi.add(strip);
+  });
+  const windscreen = new T.Mesh(new T.BoxGeometry(1.66, .56, .03), glass); windscreen.position.set(0, 1.44, -1.31); windscreen.rotation.x = -.18; taxi.add(windscreen);
+  const rear = windscreen.clone(); rear.position.z = 1.01; rear.rotation.x = .18; taxi.add(rear);
+  const bumperF = new T.Mesh(new T.BoxGeometry(2.04, .22, .2), black); bumperF.position.set(0, .4, -2.18); taxi.add(bumperF);
+  const bumperR = bumperF.clone(); bumperR.position.z = 2.18; taxi.add(bumperR);
+  const headMat = new T.MeshBasicMaterial({ color: 0xfff6d8 }), tailMat = new T.MeshBasicMaterial({ color: 0xff3030 });
+  [-.68, .68].forEach(x => {
+    const hl = new T.Mesh(new T.BoxGeometry(.38, .16, .05), headMat); hl.position.set(x, .78, -2.16); taxi.add(hl);
+    const tl = new T.Mesh(new T.BoxGeometry(.34, .14, .05), tailMat); tl.position.set(x, .8, 2.16); taxi.add(tl);
+    const tg = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: 0xff2020, transparent: true, depthWrite: false, blending: T.AdditiveBlending })); tg.scale.set(.9, .9, 1); tg.position.set(x, .8, 2.25); taxi.add(tg);
+  });
+  const beam = new T.SpotLight(0xfff1cc, 3.2, 26, .5, .55, 1.2); beam.position.set(0, .8, -2.2); beam.castShadow = false;
+  beam.target.position.set(0, 0, -14); taxi.add(beam, beam.target);
+  const cone = new T.Mesh(new T.PlaneGeometry(5, 12), new T.MeshBasicMaterial({ map: glowTex, color: 0xfff0c8, transparent: true, opacity: .32, depthWrite: false, blending: T.AdditiveBlending }));
+  cone.rotation.x = -Math.PI / 2; cone.position.set(0, .03, -7.5); taxi.add(cone);
+  // roof sign
+  const signTex = canvasTex(512, 128, (g, w, h) => {
+    g.fillStyle = '#ffe48a'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#141414'; g.font = `400 46px ${FONT_D}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('MUM & DAD', w / 2, h / 2 + 4);
+  });
+  const signMats = [black, black, black, black, new T.MeshBasicMaterial({ map: signTex }), new T.MeshBasicMaterial({ map: signTex })];
+  const sign = new T.Mesh(new T.BoxGeometry(1.15, .3, .34), signMats); sign.rotation.y = Math.PI / 2; sign.position.set(0, 1.92, -.2); taxi.add(sign);
+  const signGlow = new T.PointLight(0xffd36a, .8, 4); signGlow.position.set(0, 2.2, -.2); taxi.add(signGlow);
+  // wheels
+  const wheels = [];
+  const tyre = mat(0x111111, { roughness: .9 }), hub = mat(0xb9c0c8, { metalness: .8, roughness: .3 });
+  [[-1, -1.38], [1, -1.38], [-1, 1.4], [1, 1.4]].forEach(([s, z]) => {
+    const w = new T.Group();
+    const t = new T.Mesh(new T.CylinderGeometry(.42, .42, .32, 20), tyre); t.rotation.z = Math.PI / 2; w.add(t);
+    const hb = new T.Mesh(new T.CylinderGeometry(.22, .22, .34, 8), hub); hb.rotation.z = Math.PI / 2; w.add(hb);
+    w.position.set(s * .98, .42, z); taxi.add(w); wheels.push(w);
+  });
+  // two passengers' heads in the back
+  [[-.42, 0xf1c27d], [.42, 0xc68642]].forEach(([x, c]) => { const hd = new T.Mesh(new T.SphereGeometry(.2, 14, 10), mat(c)); hd.position.set(x, 1.5, .55); taxi.add(hd); });
+
+  /* ---------- floating meter above the taxi ---------- */
+  const meterTex = canvasTex(640, 300, () => {});
+  const meter = new T.Sprite(new T.SpriteMaterial({ map: meterTex, transparent: true, depthWrite: false }));
+  meter.scale.set(3.6, 1.69, 1); meter.position.set(0, 3.55, 0); taxi.add(meter);
+  function drawMeter(tokens, mins, km, extras) {
+    const { g, c } = meterTex.userData, w = c.width, h = c.height;
+    g.clearRect(0, 0, w, h);
+    roundRect(g, 8, 8, w - 16, h - 16, 34); g.fillStyle = '#141414'; g.fill();
+    g.lineWidth = 10; g.strokeStyle = '#ffc20e'; g.stroke();
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+    g.shadowColor = 'rgba(255,194,14,.75)'; g.shadowBlur = 26; g.fillStyle = '#ffc20e';
+    g.font = `400 112px ${FONT_D}`; g.fillText(tokens.toFixed(1), w / 2, 140);
+    g.shadowBlur = 0; g.fillStyle = '#fff2c4'; g.font = `800 26px ${FONT_B}`; g.fillText('Taxi Tokens', w / 2, 178);
+    const cols = [['TIME', `${Math.floor(mins)}:${String(Math.floor((mins % 1) * 60)).padStart(2, '0')}`], ['KM', km.toFixed(1)], ['EXTRAS', '+' + extras]];
+    cols.forEach(([k, v], i) => { const x = w * (i + .5) / 3; g.fillStyle = '#d8c58a'; g.font = `800 20px ${FONT_B}`; g.fillText(k, x, 222); g.fillStyle = '#ffffff'; g.font = `400 38px ${FONT_D}`; g.fillText(v, x, 266); });
+    meterTex.needsUpdate = true;
+  }
+
+  /* ---------- surcharge badges and the receipt ---------- */
+  function badgeTex(text, credits) {
+    return canvasTex(560, 140, (g, w, h) => {
+      roundRect(g, 6, 6, w - 12, h - 12, 60); g.fillStyle = '#ffffff'; g.fill(); g.lineWidth = 8; g.strokeStyle = '#141414'; g.stroke();
+      g.fillStyle = '#141414'; let fs = 46; do { g.font = `900 ${fs}px ${FONT_B}`; fs -= 2; } while (g.measureText(text).width > w - 170 && fs > 24); g.textBaseline = 'middle'; g.textAlign = 'left'; g.fillText(text, 36, h / 2 + 2);
+      g.fillStyle = '#d64545'; g.font = `400 52px ${FONT_D}`; g.textAlign = 'right'; g.fillText('+' + credits, w - 40, h / 2 + 4);
+    });
+  }
+  const SURCHARGES = [['🙄 Backseat driver', 3, 3.2], ['🎵 Music takeover', 2, 6.4], ['🍟 Drive-thru', 3, 9.4]];
+  const badges = SURCHARGES.map(([t, c, at]) => {
+    const s = new T.Sprite(new T.SpriteMaterial({ map: badgeTex(t, c), transparent: true, depthWrite: false, opacity: 0 }));
+    s.scale.set(2.6, .65, 1); s.renderOrder = 3; s.userData = { credits: c, at }; taxi.add(s); return s;
+  });
+  const receiptTex = canvasTex(360, 560, () => {});
+  const receipt = new T.Sprite(new T.SpriteMaterial({ map: receiptTex, transparent: true, depthWrite: false, opacity: 0 }));
+  receipt.scale.set(1.75, 2.72, 1); taxi.add(receipt);
+  function drawReceipt(fare, km, mins, extras) {
+    const { g, c } = receiptTex.userData, w = c.width, h = c.height;
+    g.clearRect(0, 0, w, h);
+    g.fillStyle = '#fbf8ef'; g.beginPath(); g.moveTo(0, 0); g.lineTo(w, 0); g.lineTo(w, h - 18);
+    for (let x = w; x >= 0; x -= 20) g.lineTo(x - 10, h - (x / 20 % 2 ? 0 : 18));
+    g.lineTo(0, h - 18); g.closePath(); g.fill();
+    g.fillStyle = '#141414'; g.textAlign = 'center'; g.font = `400 30px ${FONT_D}`; g.fillText('RECEIPT', w / 2, 56);
+    g.font = `800 20px ${FONT_B}`; g.fillStyle = '#555'; g.fillText('Taxi of Mum & Dad', w / 2, 86);
+    const rows = [['Flag fall', '3.0'], [`${km.toFixed(1)} km × 0.5`, (km * .5).toFixed(1)], [`${Math.round(mins)} min × 0.2`, (mins * .2).toFixed(1)], ['Extras', extras.toFixed(1)]];
+    g.font = `700 22px ui-monospace, Menlo, monospace`;
+    rows.forEach(([a, b], i) => { g.textAlign = 'left'; g.fillStyle = '#222'; g.fillText(a, 28, 146 + i * 40); g.textAlign = 'right'; g.fillText(b, w - 28, 146 + i * 40); });
+    g.setLineDash([6, 6]); g.strokeStyle = '#999'; g.beginPath(); g.moveTo(24, 316); g.lineTo(w - 24, 316); g.stroke(); g.setLineDash([]);
+    g.textAlign = 'left'; g.font = `400 26px ${FONT_D}`; g.fillText('TOTAL', 28, 362); g.textAlign = 'right'; g.fillText(String(Math.round(fare)), w - 28, 362);
+    g.textAlign = 'center'; g.font = `800 20px ${FONT_B}`; g.fillStyle = '#1f9d55'; g.fillText('Pay it off: empty the', w / 2, 420); g.fillText('dishwasher (−10)', w / 2, 446);
+    g.fillStyle = '#888'; g.font = `700 18px ${FONT_B}`; g.fillText('★★★★★  rate your driver', w / 2, 496);
+    receiptTex.needsUpdate = true;
+  }
+
+  /* ---------- camera rig: slow orbit plus drag ---------- */
+  let yaw = -0.62, pitch = 0.32, dragYaw = 0, dragPitch = 0, dragging = false, lastX = 0, lastY = 0;
+  canvas.style.touchAction = 'pan-y';
+  canvas.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; document.getElementById('hint').hidden = true; });
+  addEventListener('pointerup', () => { dragging = false; });
+  addEventListener('pointermove', e => {
+    if (!dragging) return;
+    dragYaw -= (e.clientX - lastX) * .006; dragPitch = Math.max(-.2, Math.min(.5, dragPitch + (e.clientY - lastY) * .003));
+    lastX = e.clientX; lastY = e.clientY;
+  });
+  // keep pointer events on the copy for links: canvas sits behind; let drags start on empty hero area too
+  document.querySelector('.hero').addEventListener('pointerdown', e => { if (e.target.closest('a,button')) return; if (e.target !== canvas) canvas.dispatchEvent(new PointerEvent('pointerdown', e)); });
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    renderer.setSize(r.width, r.height, false);
+    camera.aspect = r.width / r.height;
+    camera.updateProjectionMatrix();
+  }
+  addEventListener('resize', resize); resize();
+
+  /* ---------- the trip loop ---------- */
+  const TRIP = 12.5, RECEIPT = 5.5, CYCLE = TRIP + RECEIPT;
+  let last = performance.now(), clock = 0, roadOffset = 0, visible = true;
+  new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(canvas);
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.max(0, Math.min(.05, (now - last) / 1000)); last = now;
+    if (!visible) return;
+    clock += dt;
+    const t = clock % CYCLE;
+    const driving = t < TRIP;
+    // speed eases down at the end of the trip and back up after the receipt
+    const speed = driving ? (t > TRIP - 1.6 ? Math.max(0, (TRIP - t) / 1.6) : Math.min(1, t / 1.2 + .2)) * 11 : (t > CYCLE - .8 ? 11 * (1 - (CYCLE - t) / .8) : 0);
+    const move = speed * dt * (reduce ? .35 : 1);
+    roadOffset += move;
+    roadTex.offset.y = (roadOffset / 8) % 1;
+    for (const m of movers) { m.position.z += move; if (m.position.z > LOOP / 2) m.position.z -= LOOP; }
+    wheels.forEach(w => { w.rotation.x -= move / .42; });
+    taxi.position.y = Math.sin(clock * 9) * .012 * (speed / 11);
+    taxi.rotation.z = Math.sin(clock * 1.3) * .006 * (speed / 11);
+
+    // meter: one second of animation = one minute of driving; fare rules match the app
+    const p = driving ? t : TRIP;
+    const mins = p * 1.2, km = p * .64;
+    let extras = 0;
+    badges.forEach(b => {
+      const age = p - b.userData.at;
+      if (age >= 0) extras += b.userData.credits;
+      const show = driving && age >= 0 && age < 2.4;
+      b.material.opacity = show ? Math.min(1, age * 4, (2.4 - age) * 2) : 0;
+      if (innerWidth < 720) b.position.set(0, 2.1 + Math.max(0, age) * .15, 1.2); else b.position.set(2.9, 1.7 + Math.max(0, age) * .45, .4);
+    });
+    const tokens = 3 + km * .5 + mins * .2 + extras;
+    if ((Math.floor(clock * 10) !== frame.lastDraw)) { frame.lastDraw = Math.floor(clock * 10); drawMeter(tokens, mins, km, extras); }
+    meter.material.opacity = driving ? 1 : Math.max(0, 1 - (t - TRIP) * 3);
+
+    // receipt prints out of the roof at the end of each trip
+    if (!driving) {
+      if (!frame.printed) { drawReceipt(tokens, km, mins, extras); frame.printed = true; }
+      const r = t - TRIP;
+      receipt.material.opacity = Math.min(1, r * 3, (RECEIPT - r) * 2.5);
+      receipt.position.set(0, 2.4 + Math.min(1, r * 1.4) * 1.5, 0);
+    } else { frame.printed = false; receipt.material.opacity = 0; }
+
+    // camera
+    if (!dragging && !reduce) yaw = -0.3 + Math.sin(clock * .08) * .38;
+    const ry = yaw + dragYaw, rp = pitch + dragPitch, dist = innerWidth < 720 ? 21 : 12.5;
+    const lookShift = innerWidth < 720 ? 0 : -2.4;   // keep the taxi right of the copy on wide screens
+    camera.position.set(Math.sin(ry) * Math.cos(rp) * dist + lookShift, Math.sin(rp) * dist + 1.2, Math.cos(ry) * Math.cos(rp) * dist);
+    camera.lookAt(lookShift, innerWidth < 720 ? 5.4 : 1.6, 0);
+    // never let scenery sit between the camera and the taxi
+    for (const m of movers) m.visible = Math.hypot(m.position.x - camera.position.x, m.position.z - camera.position.z) > 4.5 && !(m.position.z > camera.position.z - 1 && Math.abs(m.position.x) > 8 && Math.abs(camera.position.x) > 6);
+    renderer.render(scene, camera);
+  }
+  // draw once fonts are ready so canvas text uses Bungee and Nunito
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => {
+    signTex.userData.g.clearRect(0, 0, 512, 128);
+    const g = signTex.userData.g; g.fillStyle = '#ffe48a'; g.fillRect(0, 0, 512, 128);
+    g.fillStyle = '#141414'; g.font = `400 46px ${FONT_D}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('MUM & DAD', 256, 68);
+    signTex.needsUpdate = true;
+    badges.forEach((b, i) => { b.material.map = badgeTex(SURCHARGES[i][0], SURCHARGES[i][1]); b.material.needsUpdate = true; });
+  });
+  requestAnimationFrame(frame);
+});
+</script>
+</body>
+</html>

@@ -87,21 +87,13 @@ A second in-car game (`county/` blueprint + `static/county.js`), opened from the
   "Voice check" panel shows the mic level and a log of recogniser events, with a copy button for bug reports.
 - **Privacy:** only "who spotted which county" reaches the server. No number plates, audio or transcripts are stored.
 
-## DeTwist (daily puzzle, passengers only)
+## Showcase page (`/drive`)
 
-A third game (`detwist/` blueprint + `static/detwist.js`), opened from the running meter or the Home screen. It is not hands-free.
-
-- **The puzzle:** coloured bands are strung between pins on a round board. Drag one end of a band to an empty pin within
-  reach. A band that crosses nothing (on woven days: lies over everything it crosses) pops free. Clear the board in as
-  few moves as you can. Par comes from a solver; three stars means par or better, a hint caps the score at two.
-- **One board a day:** the server picks the day (Europe/Dublin), so a phone clock can't unlock tomorrow. Boards are
-  pre-built in `detwist/boards.json` by `node tools/make_detwist_boards.js <YYYY-MM-DD> <days>` (currently to 2027-12-31;
-  later dates reuse a board from the same weekday).
-- **Fair scores:** the phone sends its list of moves and the server replays them with the real rules (`detwist/rules.py`)
-  before saving. The first finish per player per day counts; replays are practice. Offline results queue and are sent
-  up to 2 days late.
-- **Leaderboards:** family board with names; an everyone view that is numbers only (rank, players, top scores).
-- **Privacy:** results are included in the data export and deleted with a child or the family.
+A 3D night drive built with three.js (r149, self-hosted in `static/vendor/`, no CDN): the taxi drives down an Irish
+terrace with a floating meter that uses the real fare rules, surcharge badges pop up, and a receipt prints at the end of
+each trip. It pauses off-screen, slows for reduced-motion users and falls back to a still image where WebGL isn't
+available. It has its own Open Graph card for link previews, counts `?ref=` sources like the home page, and its sign-up
+button is tagged `ref=drive`, so the stats funnel shows how many visitors start a taxi firm.
 
 ## Architecture
 
@@ -151,7 +143,7 @@ A private `/stats` page (protected by a key) shows anonymous counts only:
 
 ## Testing
 
-- **pytest:** 36 tests (including Car Bingo levels and County Collector scoring, season roll-over, family isolation and GDPR clean-up) covering fare maths, splits and discounts, ledger and undo, surcharge caps, promises and
+- **pytest:** 37 tests (including Car Bingo levels and County Collector scoring, season roll-over, family isolation and GDPR clean-up) covering fare maths, splits and discounts, ledger and undo, surcharge caps, promises and
   their limits, access control between families, ref tracking, the stats page, data export, deleting a child or family,
   receipt expiry, retention clean-up and the EU redirect.
 - **Both databases:** the suite runs against SQLite with foreign keys enforced, and against real PostgreSQL via
