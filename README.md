@@ -87,6 +87,13 @@ A second in-car game (`county/` blueprint + `static/county.js`), opened from the
   "Voice check" panel shows the mic level and a log of recogniser events, with a copy button for bug reports.
 - **Privacy:** only "who spotted which county" reaches the server. No number plates, audio or transcripts are stored.
 
+## Share page (`/video`)
+
+The 30-second explainer (the version with made-up kids' names and a "Start free below" end card), self-hosted with a
+poster frame and served with range requests so it plays on iPhones. It autoplays muted with a "Tap for sound" button.
+The app's share message and the welcome screen link here; visits count by `?ref=` and the sign-up button is tagged
+`ref=watch`.
+
 ## Showcase page (`/drive`)
 
 A 3D night drive built with three.js (r149, self-hosted in `static/vendor/`, no CDN): the taxi drives down an Irish
@@ -143,7 +150,7 @@ A private `/stats` page (protected by a key) shows anonymous counts only:
 
 ## Testing
 
-- **pytest:** 37 tests (including Car Bingo levels and County Collector scoring, season roll-over, family isolation and GDPR clean-up) covering fare maths, splits and discounts, ledger and undo, surcharge caps, promises and
+- **pytest:** 38 tests (including Car Bingo levels and County Collector scoring, season roll-over, family isolation and GDPR clean-up) covering fare maths, splits and discounts, ledger and undo, surcharge caps, promises and
   their limits, access control between families, ref tracking, the stats page, data export, deleting a child or family,
   receipt expiry, retention clean-up and the EU redirect.
 - **Both databases:** the suite runs against SQLite with foreign keys enforced, and against real PostgreSQL via

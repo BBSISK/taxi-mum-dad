@@ -343,3 +343,15 @@ def test_drive_showcase_page_counts_refs_and_has_link_preview(app):
     from models import Event
     with app.app_context():
         assert Event.query.filter_by(kind="visit", ref="linkedin").count() == 1
+
+
+def test_video_share_page_counts_refs_and_serves_the_explainer(app):
+    c = app.test_client()
+    html = c.get("/video?ref=share").get_data(as_text=True)
+    assert "og:video" in html and "video/taxi-of-mum-and-dad.mp4" in html and "/?ref=watch" in html
+    r = c.get("/static/video/taxi-of-mum-and-dad.mp4", headers={"Range": "bytes=0-99"})
+    assert r.status_code == 206 and len(r.data) == 100  # iPhones need range requests to play video
+    r.close()
+    from models import Event
+    with app.app_context():
+        assert Event.query.filter_by(kind="visit", ref="share").count() == 1

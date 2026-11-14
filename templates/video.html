@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffc20e">
+<title>Taxi of Mum &amp; Dad in 30 seconds</title>
+<meta name="description" content="Run the meter on every lift, send a cheeky receipt, and let the kids pay it off with jobs. Free for parents.">
+<link rel="canonical" href="{{ url_for('video', _external=True) }}">
+<meta property="og:type" content="video.other">
+<meta property="og:title" content="🚕 Taxi of Mum &amp; Dad in 30 seconds">
+<meta property="og:description" content="Every lift goes on the kids' tab. They pay it off with chores, granny visits and fresh air. Free for parents.">
+<meta property="og:image" content="{{ url_for('static', filename='og.png', _external=True) }}">
+<meta property="og:video" content="{{ url_for('static', filename='video/taxi-of-mum-and-dad.mp4', _external=True) }}">
+<meta property="og:video:type" content="video/mp4">
+<meta property="og:video:width" content="1080">
+<meta property="og:video:height" content="1920">
+<meta property="og:url" content="{{ url_for('video', _external=True) }}">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+<style>
+@font-face { font-family: "Bungee"; src: url("{{ url_for('static', filename='fonts/bungee-400.woff2') }}") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Nunito"; src: url("{{ url_for('static', filename='fonts/nunito-800.woff2') }}") format("woff2"); font-weight: 800; font-display: swap; }
+@font-face { font-family: "Nunito"; src: url("{{ url_for('static', filename='fonts/nunito-900.woff2') }}") format("woff2"); font-weight: 900; font-display: swap; }
+:root { --cab: #ffc20e; --ink: #141414; --cream: #fff8e6; --muted: #6d6658; --green: #23d265;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+html, body { margin: 0; background: var(--cab); color: var(--ink); }
+body { font-family: "Nunito", system-ui, sans-serif; font-weight: 800; min-height: 100vh;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 22px, var(--cab) 22px 44px) top / 100% 22px no-repeat,
+              repeating-linear-gradient(90deg, var(--cab) 0 22px, var(--ink) 22px 44px) 0 22px / 100% 22px no-repeat, var(--cab); }
+main { max-width: 980px; margin: 0 auto; padding: 64px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px));
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: center; }
+.player { position: relative; width: min(360px, 86vw); aspect-ratio: 9 / 16; max-height: 78vh; border: 6px solid var(--ink); border-radius: 28px; overflow: hidden;
+  background: var(--ink); box-shadow: 0 10px 0 var(--ink); justify-self: center; }
+video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sound { position: absolute; right: 12px; bottom: 12px; font: 900 15px "Nunito", system-ui, sans-serif; color: var(--ink); background: #fff; border: 3px solid var(--ink);
+  border-radius: 999px; padding: 8px 14px; cursor: pointer; box-shadow: 0 3px 0 var(--ink); }
+.copy { display: grid; gap: 18px; min-width: 0; }
+.sign { justify-self: start; font-family: "Bungee", Impact, sans-serif; font-size: 22px; letter-spacing: .06em; background: var(--ink); color: var(--cab); padding: 6px 16px; border-radius: 10px; }
+h1 { font-family: "Bungee", Impact, sans-serif; font-weight: 400; font-size: clamp(34px, 5.6vw, 58px); line-height: 1; margin: 0; text-wrap: balance; }
+p { margin: 0; font-size: 19px; line-height: 1.45; max-width: 32rem; }
+.cta { justify-self: start; display: inline-flex; gap: 10px; align-items: center; text-decoration: none; color: var(--ink); background: var(--green);
+  font-weight: 900; font-size: 21px; padding: 16px 26px; border: 4px solid var(--ink); border-radius: 18px; box-shadow: 0 6px 0 var(--ink); }
+.cta:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
+.cta:focus-visible, .sound:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.small { font-size: 15px; color: #3d3a33; }
+.small a { color: inherit; }
+@media (max-width: 760px) {
+  main { grid-template-columns: 1fr; gap: 24px; padding-top: 56px; }
+  .copy { order: 2; text-align: center; justify-items: center; }
+  .cta { justify-self: center; }
+  .sign { display: none; }
+  .player { width: min(300px, 74vw); }
+}
+</style>
+</head>
+<body>
+<main>
+  <div class="copy">
+    <span class="sign">TAXI</span>
+    <h1>Every lift goes on the tab.</h1>
+    <p>Run the meter on the school run, send the kids a cheeky receipt on WhatsApp, and let them pay it off with jobs, granny visits and fresh air.</p>
+    <a class="cta" href="/?ref=watch">🚕 Start your taxi firm</a>
+    <p class="small">Free for parents. Kids need no app or account. <a href="/privacy">Privacy</a></p>
+  </div>
+  <div class="player">
+    <video id="v" src="{{ url_for('static', filename='video/taxi-of-mum-and-dad.mp4') }}" poster="{{ url_for('static', filename='video/poster.jpg') }}"
+      autoplay muted loop playsinline preload="metadata" aria-label="30-second explainer video for Taxi of Mum and Dad"></video>
+    <button class="sound" id="sound" type="button">🔊 Tap for sound</button>
+  </div>
+</main>
+<script>
+(function () {
+  const v = document.getElementById('v'), b = document.getElementById('sound');
+  b.addEventListener('click', () => {
+    v.muted = !v.muted;
+    if (!v.muted) { v.currentTime = 0; v.play().catch(() => {}); }
+    b.textContent = v.muted ? '🔊 Tap for sound' : '🔇 Mute';
+  });
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { v.removeAttribute('autoplay'); v.pause(); v.controls = true; b.hidden = true; }
+})();
+</script>
+</body>
+</html>

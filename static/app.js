@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 15;
+const APP_VERSION = 16;
 /* Taxi of Mum & Dad - vanilla JS PWA. No build step, no framework. */
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -133,7 +133,7 @@ function nav(active) {
   return `<nav class="bottom"><div class="wrap">${b('home', '🏠', 'Home')}${b('start', '🚕', 'Start trip', 'go')}${b('settings', '⚙️', 'Settings')}</div></nav>`;
 }
 
-const SHARE_TEXT = () => `🚕 Found a brilliant app: Taxi of Mum & Dad. Every lift goes on the kids' tab and they pay it off with chores (dishes, granny visits, fresh air…). Free for parents 👉 ${location.origin}/drive?ref=share`;
+const SHARE_TEXT = () => `🚕 Found a brilliant app: Taxi of Mum & Dad. Every lift goes on the kids' tab and they pay it off with chores (dishes, granny visits, fresh air…). Free for parents. 30-second video 👉 ${location.origin}/video?ref=share`;
 // Which link brought this parent here? Held in memory only, sent once at sign-up, never stored on the device.
 const ENTRY_REF = new URLSearchParams(location.search).get('ref');
 const val = id => ($('#' + id)?.value || '').trim();
@@ -183,7 +183,7 @@ const VIEWS = {
       <h1>Taxi of Mum &amp; Dad</h1>
       <p class="muted">Run the meter on every lift. Send a cheeky receipt.<br>Let them pay it off with jobs, granny visits and fresh air.</p>
       ${installBtn('btn white slim')}
-      <p style="margin:10px 0 0"><a class="see-it" href="/drive">🎬 See it in action</a></p>
+      <p style="margin:10px 0 0"><a class="see-it" href="/video">🎬 Watch the 30-second video</a></p>
     </section>
     ${code ? '' : `
     <div class="card">

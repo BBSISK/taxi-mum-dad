@@ -340,6 +340,16 @@ def register_routes(app):
     def terms():
         return render_template("terms.html")
 
+    @app.get("/video")
+    def video():
+        """The 30-second explainer, for sharing: same ref counting as the home page."""
+        ref = clean_ref(request.args.get("ref"))
+        if ref and not is_bot():
+            track("visit", ref=ref)
+        resp = Response(render_template("video.html"))
+        resp.headers["Cache-Control"] = "public, max-age=300"
+        return resp
+
     @app.get("/drive")
     def drive():
         """3D showcase page for sharing: same ref counting as the home page."""
