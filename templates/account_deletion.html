@@ -1,0 +1,29 @@
+{% extends "_legal_base.html" %}
+{% block title %}Delete your account{% endblock %}
+{% block body %}
+<h1>Delete your account and data</h1>
+<p class="meta">Taxi of Mum &amp; Dad</p>
+
+<p>You can delete your taxi firm and everything in it at any time, from the app or from any web browser. You don't need to reinstall anything.</p>
+
+<h2>Delete everything (your whole family)</h2>
+<ol>
+  <li>Open the app, or go to <a href="/">taxi-mum-dad-eu.onrender.com</a> on the phone you use for it.</li>
+  <li>Tap <b>⚙️ Settings</b>.</li>
+  <li>Scroll to <b>🔒 Your data</b> and tap <b>Delete our family and all its data</b>.</li>
+  <li>Type <b>DELETE</b> to confirm.</li>
+</ol>
+<p>This deletes straight away: the family, both parents' driver profiles, every child, trip, receipt, rating, promise and job. It can't be undone.
+If you'd like a copy first, tap <b>⬇️ Download our data</b> in the same place.</p>
+
+<h2>Delete one child</h2>
+<p>In <b>⚙️ Settings → Passengers</b>, tap <b>Edit</b> next to the child, then <b>Delete</b>. Their trips, receipts, ratings and promises are removed with them.</p>
+
+<h2>Can't get into the app?</h2>
+<p>{% if contact %}Email <b>{{ contact }}</b> from any address with your taxi firm's name and invite code (shown in Settings), and we'll delete it within 30 days.
+{% else %}Contact us using the details in the <a href="/privacy">privacy notice</a> with your taxi firm's name, and we'll delete it within 30 days.{% endif %}</p>
+
+<h2>What we keep</h2>
+<p>Nothing that identifies you. We keep anonymous counts only (for example "a family signed up in November"). Families with no activity for 12 months are deleted automatically.
+See the <a href="/privacy">privacy notice</a> for details.</p>
+{% endblock %}

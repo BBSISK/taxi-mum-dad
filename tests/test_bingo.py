@@ -8,7 +8,12 @@ from models import db
 from tests.test_app import add_kid, state  # noqa: F401  (shared helpers)
 
 
-from tests.test_app import app  # noqa: F401,E402  (same fixture: SQLite, or Postgres via TEST_DATABASE_URL)
+from tests.test_app import games_app  # noqa: F401,E402  (games switched on, as on the labs service)
+
+
+@pytest.fixture()
+def app(games_app):
+    return games_app
 
 
 @pytest.fixture()

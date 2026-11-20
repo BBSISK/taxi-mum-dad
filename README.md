@@ -42,6 +42,22 @@ passwords or emails.
 - **Built-in sharing:** branded WhatsApp receipt footer, a "know a parent who's a taxi too?" share card, and Open Graph
   preview images for link cards.
 
+## Feature flag and Labs
+
+The in-car games are switched off unless `GAMES_ENABLED=1`. With the flag off, the game routes aren't registered, the
+game scripts aren't loaded, and the privacy notice leaves out the game sections. Existing game data is still included in
+exports and deletions. The store apps and the main site run with the games off; a second Render service,
+**Labs** (`taxi-mum-dad-labs`), runs the same code and database with `GAMES_ENABLED=1` and `LABS=1`, so the games can be
+tested on real drives without shipping them. Apple rejects hidden features, so there's no secret switch in the store
+app: a version either has the games or it doesn't.
+
+## Android app (Google Play)
+
+The Android app is a Trusted Web Activity built with PWABuilder. `/.well-known/assetlinks.json` is generated from
+`ANDROID_PACKAGE` and `ANDROID_SHA256` so the app opens full screen without a browser bar, and `/account-deletion`
+explains how to delete an account, as Google Play requires. The web app manifest includes an `id`, categories and
+screenshots for the store packaging tools.
+
 ## Car Bingo (in-car I-spy, hands-free)
 
 A separate module (`bingo/` Flask blueprint + `static/bingo.js`) that pops up from the running meter.
@@ -150,7 +166,7 @@ A private `/stats` page (protected by a key) shows anonymous counts only:
 
 ## Testing
 
-- **pytest:** 38 tests (including Car Bingo levels and County Collector scoring, season roll-over, family isolation and GDPR clean-up) covering fare maths, splits and discounts, ledger and undo, surcharge caps, promises and
+- **pytest:** 40 tests (including Car Bingo levels and County Collector scoring, season roll-over, family isolation and GDPR clean-up) covering fare maths, splits and discounts, ledger and undo, surcharge caps, promises and
   their limits, access control between families, ref tracking, the stats page, data export, deleting a child or family,
   receipt expiry, retention clean-up and the EU redirect.
 - **Both databases:** the suite runs against SQLite with foreign keys enforced, and against real PostgreSQL via
@@ -191,6 +207,9 @@ GPS needs HTTPS on a real phone, so test the meter on the deployed URL, or use "
 | `TZ_NAME` | Timezone for receipts (default `Europe/Dublin`) |
 | `STATS_KEY` | Enables the private `/stats` page |
 | `CONTACT_EMAIL` | Contact shown on the privacy notice and terms |
+| `GAMES_ENABLED` | `1` turns on Car Bingo and County Collector (Labs only for now) |
+| `LABS` | `1` labels the Labs service in Settings |
+| `ANDROID_PACKAGE`, `ANDROID_SHA256` | Digital Asset Links for the Android app (package ID; comma-separated signing certificate fingerprints) |
 | `REDIRECT_TO` | Set only on the old US service, to forward every request to the EU app |
 
 ## How it was built

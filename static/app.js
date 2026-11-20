@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 16;
+const APP_VERSION = 17;
 /* Taxi of Mum & Dad - vanilla JS PWA. No build step, no framework. */
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -337,10 +337,10 @@ const VIEWS = {
         </button>`).join('')}
         <button class="live undo" data-act="liveUndo" aria-label="Undo last charge"><span class="e">↩️</span><span class="t">Undo</span></button>
       </div>` : ''}
-      <div class="games-row">
+      ${window.TaxiBingo || window.TaxiCounty ? `<div class="games-row">
         <button class="btn bingo-open" data-act="openBingo">🎯 Car Bingo <small>hands-free I-spy</small></button>
         <button class="btn bingo-open" data-act="openCounty">🗺️ Counties <small>spot the plates</small></button>
-      </div>
+      </div>` : ''}
       <button class="btn dark stop" data-act="stopMeter">🛑 STOP &amp; PRINT</button>
       <p class="small muted center tip">Eyes on the road 👀 Let the front-seat passenger tap the charges (they'll love billing their sibling).</p>
       <p class="center" style="margin:0"><button class="link" data-act="cancelMeter">Cancel trip</button></p>
@@ -527,7 +527,7 @@ const VIEWS = {
       <p class="center" style="margin:6px 0 0"><button class="link" style="color:var(--red)" data-act="deleteFamily">Delete our family and all its data</button></p>
     </div>
     <p class="center"><button class="link" data-act="logout">Sign out on this phone</button></p>
-    <p class="center small muted">App version ${APP_VERSION}</p>
+    <p class="center small muted">App version ${APP_VERSION}${S.features?.labs ? ' · 🧪 Labs (games on)' : ''}</p>
     ` + nav('settings');
   },
 

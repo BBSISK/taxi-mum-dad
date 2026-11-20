@@ -6,9 +6,30 @@ from app import create_app, normalise_phone
 from models import db
 
 
+def build_app(**extra):
+    # TEST_DATABASE_URL=postgresql://... runs the suite against real Postgres (foreign keys and all)
+    url = os.environ.get("TEST_DATABASE_URL", "sqlite://")
+    application = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": url, **extra})
+    if url != "sqlite://":
+        with application.app_context():
+            db.drop_all()
+            db.create_all()
+    return application, url
+
+
+@pytest.fixture()
+def games_app():
+    """The labs configuration: same app with the in-car games switched on."""
+    application, url = build_app(GAMES_ENABLED=True)
+    yield application
+    if url != "sqlite://":
+        with application.app_context():
+            db.session.remove()
+            db.drop_all()
+
+
 @pytest.fixture()
 def app():
-    # TEST_DATABASE_URL=postgresql://... runs the suite against real Postgres (foreign keys and all)
     url = os.environ.get("TEST_DATABASE_URL", "sqlite://")
     application = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": url})
     if url != "sqlite://":
@@ -355,3 +376,33 @@ def test_video_share_page_counts_refs_and_serves_the_explainer(app):
     from models import Event
     with app.app_context():
         assert Event.query.filter_by(kind="visit", ref="share").count() == 1
+
+
+def test_games_are_off_by_default_and_on_in_labs(app, games_app):
+    c = app.test_client()
+    c.post("/api/family", json={"family_name": "Store Cabs", "parent_name": "Dad"})
+    assert c.get("/api/bingo/card").status_code == 404 and c.get("/api/county/passport").status_code == 404
+    s = state(c)
+    assert s["features"]["games"] is False and "bingo" not in s and "county" not in s
+    page = c.get("/").get_data(as_text=True)
+    assert "bingo.js" not in page and "games-core.js" not in page
+    assert "Car Bingo" not in c.get("/privacy").get_data(as_text=True)  # privacy notice only describes what's on
+    assert "car_bingo" in c.get("/api/export").get_json()  # older game data still exported and deletable
+
+    g = games_app.test_client()
+    g.post("/api/family", json={"family_name": "Labs Cabs", "parent_name": "Dad"})
+    assert g.get("/api/bingo/card").status_code == 200 and state(g)["features"]["games"] is True
+    assert "bingo.js" in g.get("/").get_data(as_text=True)
+    assert "Car Bingo" in g.get("/privacy").get_data(as_text=True)
+
+
+def test_android_asset_links_and_account_deletion_page():
+    from tests.test_app import build_app
+    plain, _ = build_app()
+    assert plain.test_client().get("/.well-known/assetlinks.json").status_code == 404  # not configured yet
+    app, _ = build_app(ANDROID_PACKAGE="com.example.taxi", ANDROID_SHA256="AA:BB, CC:DD")
+    links = app.test_client().get("/.well-known/assetlinks.json").get_json()
+    assert links[0]["target"] == {"namespace": "android_app", "package_name": "com.example.taxi",
+                                  "sha256_cert_fingerprints": ["AA:BB", "CC:DD"]}
+    html = app.test_client().get("/account-deletion").get_data(as_text=True)
+    assert "Delete our family and all its data" in html

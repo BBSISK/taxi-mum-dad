@@ -210,6 +210,12 @@ def create_app(test_config=None):
         SESSION_COOKIE_SECURE=bool(os.environ.get("RENDER")),
         PERMANENT_SESSION_LIFETIME=dt.timedelta(days=400),
         MAX_CONTENT_LENGTH=64 * 1024,
+        # In-car games (Car Bingo, County Collector) are off unless GAMES_ENABLED=1. The store apps and the main site
+        # run without them; a separate "labs" service runs the same code with them on.
+        GAMES_ENABLED=os.environ.get("GAMES_ENABLED", "0") == "1",
+        LABS=os.environ.get("LABS", "0") == "1",
+        ANDROID_PACKAGE=os.environ.get("ANDROID_PACKAGE", ""),
+        ANDROID_SHA256=os.environ.get("ANDROID_SHA256", ""),
     )
     if test_config:
         app.config.update(test_config)
@@ -227,8 +233,13 @@ def create_app(test_config=None):
         rename_old_defaults()
 
     register_routes(app)
-    app.register_blueprint(bingo_bp)
-    app.register_blueprint(county_bp)
+    if app.config["GAMES_ENABLED"]:
+        app.register_blueprint(bingo_bp)
+        app.register_blueprint(county_bp)
+
+    @app.context_processor
+    def feature_flags():
+        return {"games_enabled": app.config["GAMES_ENABLED"], "labs": app.config["LABS"]}
     return app
 
 
@@ -339,6 +350,19 @@ def register_routes(app):
     @app.get("/terms")
     def terms():
         return render_template("terms.html")
+
+    @app.get("/.well-known/assetlinks.json")
+    def assetlinks():
+        """Digital Asset Links: lets the Android app (a Trusted Web Activity) open this site full-screen, without a URL bar."""
+        pkg, prints = app.config["ANDROID_PACKAGE"], [p.strip() for p in app.config["ANDROID_SHA256"].split(",") if p.strip()]
+        if not pkg or not prints:
+            abort(404)
+        return jsonify([{"relation": ["delegate_permission/common.handle_all_urls"],
+                         "target": {"namespace": "android_app", "package_name": pkg, "sha256_cert_fingerprints": prints}}])
+
+    @app.get("/account-deletion")
+    def account_deletion():
+        return render_template("account_deletion.html", contact=os.environ.get("CONTACT_EMAIL", ""))
 
     @app.get("/video")
     def video():
@@ -487,8 +511,8 @@ def register_routes(app):
             five_star_discount=FIVE_STAR_DISCOUNT,
             drivers=drivers,
             trips=[trip_json(t) for t in trips],
-            bingo=bingo_summary(fam.id),
-            county=county_summary(fam.id),
+            features={"games": app.config["GAMES_ENABLED"], "labs": app.config["LABS"]},
+            **({"bingo": bingo_summary(fam.id), "county": county_summary(fam.id)} if app.config["GAMES_ENABLED"] else {}),
             promises=[promise_json(p) for p in Promise.query.filter_by(family_id=fam.id, status="promised")
                       .order_by(Promise.due_on, Promise.id).all()],
         )
