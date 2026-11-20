@@ -7,3 +7,11 @@ instance/
 .env
 .DS_Store
 Claude outputs/
+
+# Android signing and store packages: never commit
+*.keystore
+*.jks
+signing-key-info.txt
+*.aab
+*.apk
+Mum&Dad Taxi - Google Play package*
