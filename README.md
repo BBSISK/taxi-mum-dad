@@ -42,6 +42,13 @@ passwords or emails.
 - **Built-in sharing:** branded WhatsApp receipt footer, a "know a parent who's a taxi too?" share card, and Open Graph
   preview images for link cards.
 
+## iPhone app (App Store)
+
+A separate Capacitor 8 project (`taxi-ios`, bundle ID `com.bbsisk.taximumdad`) loads the live site inside a native
+shell. `static/native.js` switches on native extras only inside the app shells: the native share sheet for share links,
+haptics on meter actions, and opt-in local notifications at 6pm on the day a promised job is due (scheduled from
+`/api/state` promises, which now include `due_on`). On the web it does nothing.
+
 ## Feature flag and Labs
 
 The in-car games are switched off unless `GAMES_ENABLED=1`. With the flag off, the game routes aren't registered, the

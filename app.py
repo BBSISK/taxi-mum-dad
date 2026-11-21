@@ -142,7 +142,7 @@ def due_label(day):
 def promise_json(p):
     return {"id": p.id, "kid_id": p.kid_id, "kid": p.kid.name, "kid_emoji": p.kid.emoji,
             "label": p.label, "emoji": p.emoji or "⭐", "credits": p.credits,
-            "due": due_label(p.due_on), "overdue": p.due_on < local_today(), "signature": p.signature or ""}
+            "due": due_label(p.due_on), "due_on": p.due_on.isoformat(), "overdue": p.due_on < local_today(), "signature": p.signature or ""}
 
 
 BOT_UA = re.compile(r"bot|crawl|spider|preview|facebookexternalhit|whatsapp|slack|telegram|discord|twitter|curl|python|headless", re.I)

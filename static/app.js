@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 17;
+const APP_VERSION = 18;
 /* Taxi of Mum & Dad - vanilla JS PWA. No build step, no framework. */
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -34,7 +34,7 @@ async function api(path, { method = 'GET', body } = {}) {
   if (!res.ok) throw new Error(data.error || `Something went wrong (${res.status})`);
   return data;
 }
-async function refresh() { S = await api('/api/state'); LS.set('taxi.state', S); return S; }
+async function refresh() { S = await api('/api/state'); LS.set('taxi.state', S); window.TaxiNative?.onState(S); return S; }
 
 /* ------------------------------------------------------------------ helpers */
 const cur = () => S?.family?.currency || 'Taxi Tokens';
@@ -91,7 +91,7 @@ function emojiPicker(group, list, current) {
 let installPrompt = null;   // Chrome/Edge/Android hand us this event; Safari never does
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; });
 window.addEventListener('appinstalled', () => { installPrompt = null; toast('🚕 Installed! Look for it on your home screen'); render(); });
-const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isInstalled = () => !!window.TaxiNative?.native || matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const inAppBrowser = () => /FBAN|FBAV|Instagram|WhatsApp|Line\/|wv\)/i.test(navigator.userAgent);
 const installBtn = (cls = 'install') => isInstalled() ? '' : `<button class="${cls}" data-act="install">📲 Install app</button>`;
@@ -225,6 +225,7 @@ const VIEWS = {
     <p class="center" style="margin:10px 0 0"><button class="btn white slim offduty" data-act="offDuty">🅿️ Go off duty</button></p>
 
     ${promisesCard(S.promises || [])}
+    ${window.TaxiNative?.reminderNudge(S) || ''}
 
     <h2>Passengers &amp; their tabs</h2>
     ${kids.length ? `<div class="card tabs-list">${kids.map(k => `
@@ -468,6 +469,7 @@ const VIEWS = {
       <button class="btn white" data-act="micTest">${window.__micTest ? '⏹️ Stop the test' : '🧪 Test the mic (20 seconds)'}</button>
       ${window.__micTest ? `<p class="small" style="margin:8px 0 0">Say "Jack, Kerry". Heard: <b id="mt-heard">${esc(window.__micHeard || '…')}</b></p>` : ''}
     </div>` : ''}
+    ${window.TaxiNative?.settingsCard() || ''}
     <div class="card">
       <h2 style="margin-top:0">🤝 Your co-driver</h2>
       <p class="small muted">Send this to Mum / Dad so you share one set of tabs.</p>
@@ -809,6 +811,11 @@ const ACTS = {
     window.__micTest.start();
     if (window.__micTest.mode === 'ptt') window.__micTest.push();
     window.__micTimer = setTimeout(stop, 20000);
+    const y = window.scrollY; render(); window.scrollTo(0, y);
+  },
+  async nativeReminders(el) {
+    const on = await window.TaxiNative?.setReminders(el.dataset.val === 'on');
+    if (el.dataset.val === 'on') toast(on ? '🔔 Reminders on: 6pm on the day a job is due' : 'Reminders are off. You can allow notifications in iPhone Settings.');
     const y = window.scrollY; render(); window.scrollTo(0, y);
   },
   openCounty() {
