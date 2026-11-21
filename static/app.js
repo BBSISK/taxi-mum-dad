@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 18;
+const APP_VERSION = 19;
 /* Taxi of Mum & Dad - vanilla JS PWA. No build step, no framework. */
 
 const $ = (s, el = document) => el.querySelector(s);

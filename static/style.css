@@ -14,8 +14,8 @@
   --red: #d64545;
   --radius: 18px;
   --shadow: 0 4px 0 var(--ink);
-  --display: "Bungee", Impact, "Arial Black", sans-serif;
-  --body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --display: "Bungee", Impact, "Arial Black", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  --body: "Nunito", system-ui, -apple-system, "Segoe UI", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--body); font-weight: 600; }
