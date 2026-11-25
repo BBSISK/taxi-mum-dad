@@ -214,6 +214,9 @@ def create_app(test_config=None):
         # run without them; a separate "labs" service runs the same code with them on.
         GAMES_ENABLED=os.environ.get("GAMES_ENABLED", "0") == "1",
         LABS=os.environ.get("LABS", "0") == "1",
+        # How's the Driving? Sensor Lab: always on Labs; SENSOR_LAB=1 also puts it on the main site, reached from the
+        # installed app by tapping the version number in Settings 5 times. Not linked anywhere else.
+        SENSOR_LAB=os.environ.get("SENSOR_LAB", "0") == "1",
         ANDROID_PACKAGE=os.environ.get("ANDROID_PACKAGE", ""),
         ANDROID_SHA256=os.environ.get("ANDROID_SHA256", ""),
     )
@@ -233,7 +236,7 @@ def create_app(test_config=None):
         rename_old_defaults()
 
     register_routes(app)
-    if app.config["LABS"]:
+    if app.config["LABS"] or app.config["SENSOR_LAB"]:
         register_lab_routes(app)
     if app.config["GAMES_ENABLED"]:
         app.register_blueprint(bingo_bp)
@@ -527,7 +530,8 @@ def register_routes(app):
             five_star_discount=FIVE_STAR_DISCOUNT,
             drivers=drivers,
             trips=[trip_json(t) for t in trips],
-            features={"games": app.config["GAMES_ENABLED"], "labs": app.config["LABS"]},
+            features={"games": app.config["GAMES_ENABLED"], "labs": app.config["LABS"],
+                      "sensor_lab": app.config["LABS"] or app.config["SENSOR_LAB"]},
             **({"bingo": bingo_summary(fam.id), "county": county_summary(fam.id)} if app.config["GAMES_ENABLED"] else {}),
             promises=[promise_json(p) for p in Promise.query.filter_by(family_id=fam.id, status="promised")
                       .order_by(Promise.due_on, Promise.id).all()],

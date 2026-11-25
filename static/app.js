@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 19;
+const APP_VERSION = 20;
 /* Taxi of Mum & Dad - vanilla JS PWA. No build step, no framework. */
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -529,7 +529,7 @@ const VIEWS = {
       <p class="center" style="margin:6px 0 0"><button class="link" style="color:var(--red)" data-act="deleteFamily">Delete our family and all its data</button></p>
     </div>
     <p class="center"><button class="link" data-act="logout">Sign out on this phone</button></p>
-    <p class="center small muted">App version ${APP_VERSION}${S.features?.labs ? ' · 🧪 Labs (games on)' : ''}</p>
+    <p class="center small muted"><button class="link" style="color:inherit;text-decoration:none" data-act="versionTap">App version ${APP_VERSION}${S.features?.labs ? ' · 🧪 Labs (games on)' : ''}</button></p>
     ` + nav('settings');
   },
 
@@ -667,6 +667,7 @@ async function afterPayment(kidId, res, label) {
 }
 
 /* ------------------------------------------------------------------ actions */
+let versionTaps = 0, versionTapAt = 0;
 const ACTS = {
   go: el => go(el.dataset.to),
   reload: () => location.reload(),
@@ -933,6 +934,12 @@ const ACTS = {
     const typed = prompt(`This permanently deletes ${el.dataset.name}, their trips, receipts, promises and tab. It cannot be undone.\n\nType DELETE to confirm:`);
     if (!typed) return;
     try { await api(`/api/kids/${el.dataset.id}/delete`, { method: 'POST', body: { confirm: typed } }); await refresh(); go('settings'); toast('🗑️ Deleted'); } catch (e) { oops(e); }
+  },
+  versionTap() {  // 5 quick taps on the version number opens the hidden Sensor Lab (when switched on for this site)
+    const now = Date.now();
+    versionTaps = now - versionTapAt < 1500 ? versionTaps + 1 : 1;
+    versionTapAt = now;
+    if (versionTaps >= 5 && S && S.features && S.features.sensor_lab) { versionTaps = 0; location.href = '/lab/drive'; }
   },
   async logout() {
     if (!confirm('Sign out on this phone?')) return;

@@ -416,3 +416,12 @@ def test_sensor_lab_only_on_labs():
     assert r.status_code == 200 and b"SENSOR LAB" in r.data
     assert r.headers["Cache-Control"] == "no-store" and r.headers["X-Robots-Tag"] == "noindex"
     assert labs.test_client().get("/static/lab/htd-analysis.js").status_code == 200
+
+
+def test_sensor_lab_can_be_switched_on_for_the_main_site():
+    main, _ = build_app(SENSOR_LAB=True)
+    c = main.test_client()
+    assert c.get("/lab/drive").status_code == 200
+    c.post("/api/family", json={"family_name": "Lab Cabs", "parent_name": "Dad"})
+    f = c.get("/api/state").get_json()["features"]
+    assert f["sensor_lab"] is True and f["labs"] is False and f["games"] is False

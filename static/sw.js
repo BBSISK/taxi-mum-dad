@@ -1,6 +1,6 @@
 /* Taxi of Mum & Dad service worker: app shell offline, API always live. */
-const CACHE = 'taxi-v19';
-const SHELL = ['/', '/static/style.css?v=19', '/static/app.js?v=19', '/static/native.js?v=19', '/static/bingo.js?v=19', '/static/bingo.css?v=19', '/static/games-core.js?v=19', '/static/county.js?v=19', '/static/icons/icon-192.png', '/static/fonts/bungee-400.woff2', '/static/fonts/nunito-800.woff2', '/manifest.webmanifest'];
+const CACHE = 'taxi-v20';
+const SHELL = ['/', '/static/style.css?v=20', '/static/app.js?v=20', '/static/native.js?v=20', '/static/bingo.js?v=20', '/static/bingo.css?v=20', '/static/games-core.js?v=20', '/static/county.js?v=20', '/static/icons/icon-192.png', '/static/fonts/bungee-400.woff2', '/static/fonts/nunito-800.woff2', '/manifest.webmanifest'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
