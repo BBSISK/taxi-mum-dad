@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ff7a1a">
+<meta name="robots" content="noindex">
+<title>How's the Driving? Sensor Lab</title>
+<link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+<style>
+@font-face { font-family: "Bungee"; src: url("{{ url_for('static', filename='fonts/bungee-400.woff2') }}") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Nunito"; src: url("{{ url_for('static', filename='fonts/nunito-800.woff2') }}") format("woff2"); font-weight: 800; font-display: swap; }
+@font-face { font-family: "Nunito"; src: url("{{ url_for('static', filename='fonts/nunito-900.woff2') }}") format("woff2"); font-weight: 900; font-display: swap; }
+:root { --hivis: #ff7a1a; --ink: #141414; --silver: #e4e8eb; --paper: #fff8e6; --red: #d7262e; --green: #23d265; --muted: #5c5648; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--hivis); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 800; }
+body { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.stripes { padding-top: max(6px, env(safe-area-inset-top, 0px)); }
+.stripes div { height: 8px; background: var(--silver); border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); margin: 6px 0; }
+main { max-width: 560px; margin: 0 auto; padding: 8px 16px 40px; }
+.brand { display: flex; align-items: center; gap: 12px; margin: 10px 0 4px; }
+.lplate { width: 52px; height: 52px; background: #fff; border: 4px solid var(--ink); border-radius: 10px; display: grid; place-items: center;
+  font-family: "Bungee", Impact, sans-serif; font-size: 34px; color: var(--red); transform: rotate(-6deg); box-shadow: 0 4px 0 var(--ink); flex-shrink: 0; }
+h1 { font-family: "Bungee", Impact, sans-serif; font-weight: 400; font-size: 24px; line-height: 1; margin: 0; }
+h2 { font-family: "Bungee", Impact, sans-serif; font-weight: 400; font-size: 18px; margin: 0 0 10px; }
+.tag { display: inline-block; font-size: 12px; font-weight: 900; letter-spacing: .06em; background: var(--ink); color: var(--hivis); padding: 3px 8px; border-radius: 6px; }
+.card { background: var(--paper); border: 4px solid var(--ink); border-radius: 18px; box-shadow: 0 5px 0 var(--ink); padding: 16px; margin: 16px 0; }
+.card.dark { background: var(--ink); color: var(--silver); box-shadow: 0 5px 0 rgba(0,0,0,.35); }
+p { line-height: 1.45; margin: 0 0 10px; }
+.small { font-size: 14px; color: var(--muted); }
+.dark .small { color: #b8b2a6; }
+button, .btn { font-family: inherit; font-weight: 900; font-size: 17px; color: var(--ink); background: #fff; border: 4px solid var(--ink); border-radius: 16px;
+  box-shadow: 0 4px 0 var(--ink); min-height: 52px; padding: 10px 16px; cursor: pointer; width: 100%; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+button:active, .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+button.go { font-family: "Bungee", Impact, sans-serif; font-weight: 400; font-size: 26px; background: var(--hivis); border-color: #fff; box-shadow: 0 6px 0 #fff; min-height: 72px; }
+button.green { background: var(--green); }
+button.slim { min-height: 44px; font-size: 15px; width: auto; padding: 6px 12px; }
+button:disabled { opacity: .5; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.checks { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; }
+.checks li { display: flex; gap: 8px; align-items: baseline; font-size: 15px; }
+.ok { color: #1e7a3c; } .bad { color: #b3121c; } .meh { color: #8a5a00; }
+.dark .ok { color: #7ee2a0; } .dark .bad { color: #ff8b8b; } .dark .meh { color: #ffd27a; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 6px 4px; border-bottom: 2px dashed #c9bfa6; vertical-align: top; }
+th { font-size: 12px; letter-spacing: .05em; color: var(--muted); }
+.stamp { width: 92px; height: 92px; border-radius: 50%; border: 5px solid var(--red); display: grid; place-items: center; transform: rotate(-10deg);
+  font-family: "Bungee", Impact, sans-serif; font-size: 36px; color: var(--red); flex-shrink: 0; }
+.rc-top { display: flex; gap: 14px; align-items: center; margin-bottom: 12px; }
+.comment { font-style: italic; font-size: 17px; }
+.pill { display: inline-block; border: 3px solid var(--ink); border-radius: 999px; padding: 4px 10px; margin: 0 6px 6px 0; font-size: 14px; font-weight: 900; background: #9be3b2; }
+.fine { display: flex; justify-content: space-between; gap: 10px; background: #fff; border: 3px solid var(--ink); border-radius: 12px; padding: 8px 10px; margin-bottom: 6px; font-size: 15px; }
+.fine b { color: #b3121c; }
+canvas { width: 100%; height: 200px; display: block; background: #fff; border: 3px solid var(--ink); border-radius: 12px; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; margin-top: 6px; }
+.legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
+.drives { display: grid; gap: 8px; }
+.drives .row { display: flex; gap: 8px; align-items: center; background: #fff; border: 3px solid var(--ink); border-radius: 12px; padding: 8px 10px; }
+.drives .row span { flex: 1; font-size: 15px; }
+
+/* recording: the whole screen goes black */
+#pocket { position: fixed; inset: 0; background: #000; color: #f4f1ea; display: none; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 24px calc(30px + env(safe-area-inset-bottom, 0px)); gap: 22px; text-align: center; z-index: 10; touch-action: none; user-select: none; -webkit-user-select: none; }
+#pocket.on { display: flex; }
+#pocket .lplate { width: 84px; height: 84px; font-size: 56px; box-shadow: none; border-color: var(--hivis); }
+#pocket h1 { color: var(--hivis); font-size: 38px; line-height: 1.05; }
+#pocket .rec { background: #1d1b18; border-radius: 999px; padding: 8px 16px; font-weight: 900; letter-spacing: .04em; }
+#pocket .rec::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #ff4b55; margin-right: 8px; }
+#pocket .status { font-size: 14px; color: #8f897e; min-height: 20px; }
+#hold { position: relative; overflow: hidden; color: #f4f1ea; background: transparent; border: 3px solid #4d4943; box-shadow: none; max-width: 420px; margin-top: auto; }
+#hold i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: rgba(255,122,26,.35); }
+#hold:active { transform: none; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="stripes" aria-hidden="true"><div></div><div></div></div>
+<main id="app">
+  <div class="brand"><div class="lplate" aria-hidden="true">L</div><div><h1>HOW'S THE<br>DRIVING?</h1></div></div>
+  <span class="tag">SENSOR LAB · TEST BUILD</span>
+
+  <section id="setup">
+    <div class="card dark">
+      <p style="color:#fff;font-size:17px">Start this <b>before</b> you set off, then put the phone in a holder or the door pocket. The screen goes black and stays awake. Don't touch it until you've parked.</p>
+      <ul class="checks" id="checks"></ul>
+      <button class="go" id="start" type="button">START A DRIVE</button>
+      <p class="small" style="margin:10px 0 0">Test build for checking the sensors. Don't lock the phone with the power button, or recording pauses.</p>
+    </div>
+
+    <div class="card">
+      <h2>Sensor check</h2>
+      <p class="small">Live readings, to see the phone gives us what we need. Give the phone a shake to see the motion number jump.</p>
+      <table><tbody id="live"></tbody></table>
+      <div style="margin-top:10px"><button class="slim" id="liveBtn" type="button">Start sensor check</button></div>
+    </div>
+
+    <div class="card" id="pastCard">
+      <h2>Saved drives</h2>
+      <div class="drives" id="past"><p class="small">None yet.</p></div>
+      <p class="small" style="margin-top:10px">Drives stay on this phone only. Download a trace to send it for tuning.</p>
+    </div>
+  </section>
+
+  <section id="report" class="hidden"></section>
+</main>
+
+<div id="pocket" role="dialog" aria-label="Recording a drive">
+  <div class="lplate" aria-hidden="true">L</div>
+  <h1>EYES ON<br>THE ROAD</h1>
+  <p style="font-size:18px;max-width:320px">We're taking notes. You're driving. We'll judge you later.</p>
+  <div class="rec" id="clock">RECORDING · 00:00</div>
+  <div class="status" id="pstatus"></div>
+  <button id="hold" type="button"><i></i><span>Passenger: hold 2 s to end the drive</span></button>
+</div>
+
+<script src="{{ url_for('static', filename='lab/htd-analysis.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='lab/drive-lab.js') }}?v=1"></script>
+</body>
+</html>

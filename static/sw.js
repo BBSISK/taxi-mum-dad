@@ -16,6 +16,7 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/r/')) return; // always live
   if (['/drive', '/video'].includes(url.pathname) || url.pathname.startsWith('/static/vendor/') || url.pathname.startsWith('/static/video/')) return; // share pages and video: plain network
+  if (url.pathname.startsWith('/lab/') || url.pathname.startsWith('/static/lab/')) return; // labs experiments: always fresh
 
   if (e.request.mode === 'navigate') {
     // Only the app itself is the offline shell; other pages (privacy, terms) must never replace it.

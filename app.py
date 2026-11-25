@@ -233,6 +233,8 @@ def create_app(test_config=None):
         rename_old_defaults()
 
     register_routes(app)
+    if app.config["LABS"]:
+        register_lab_routes(app)
     if app.config["GAMES_ENABLED"]:
         app.register_blueprint(bingo_bp)
         app.register_blueprint(county_bp)
@@ -241,6 +243,20 @@ def create_app(test_config=None):
     def feature_flags():
         return {"games_enabled": app.config["GAMES_ENABLED"], "labs": app.config["LABS"]}
     return app
+
+
+def register_lab_routes(app):
+    """Experiments that only exist on the Labs service (LABS=1), never on the main site or the store apps."""
+
+    @app.get("/lab/drive")
+    def lab_drive():
+        """How's the Driving? Sensor Lab: records GPS + motion on the phone and analyses the drive in the browser.
+        Nothing is sent to this server; the trace stays on the phone."""
+        resp = Response(render_template("lab_drive.html"))
+        resp.headers["Cache-Control"] = "no-store"
+        resp.headers["X-Robots-Tag"] = "noindex"
+        resp.headers["Referrer-Policy"] = "no-referrer"
+        return resp
 
 
 def login_required(view):

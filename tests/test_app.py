@@ -406,3 +406,13 @@ def test_android_asset_links_and_account_deletion_page():
                                   "sha256_cert_fingerprints": ["AA:BB", "CC:DD"]}
     html = app.test_client().get("/account-deletion").get_data(as_text=True)
     assert "Delete our family and all its data" in html
+
+
+def test_sensor_lab_only_on_labs():
+    main, _ = build_app()
+    assert main.test_client().get("/lab/drive").status_code == 404
+    labs, _ = build_app(LABS=True)
+    r = labs.test_client().get("/lab/drive")
+    assert r.status_code == 200 and b"SENSOR LAB" in r.data
+    assert r.headers["Cache-Control"] == "no-store" and r.headers["X-Robots-Tag"] == "noindex"
+    assert labs.test_client().get("/static/lab/htd-analysis.js").status_code == 200
