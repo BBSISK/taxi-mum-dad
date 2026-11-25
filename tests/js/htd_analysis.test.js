@@ -63,6 +63,10 @@ assert(brake && brake.src === 'both', 'hard brake found by GPS and motion');
 assert(sum.events.some(e => e.type === 'accel' && Math.abs(e.t - 71000) < 3000), 'kangaroo start found');
 assert(sum.events.some(e => e.type === 'corner' && Math.abs(e.t - 120000) < 3000), 'sharp corner found');
 assert(!sum.events.some(e => e.type === 'brake' && e.t > 135000), 'gentle final stop is not a squirrel stop');
+// a brisk motorway merge (from 50 km/h) is listed but never a Kangaroo Start
+const merge = A.analyse({ gps: [0,1,2,3,4,5,6,7].map(i => [i * 1000, 52.66 + i * 0.0002, -8.63, i < 2 ? 14 : i < 6 ? 14 + (i - 1) * 3 : 26, 0, 5]), motion: [], endedMs: 8000 }, null);
+assert(merge.events.some(e => e.type === 'merge') && !merge.events.some(e => e.type === 'accel'), 'merge not fined');
+assert(!merge.fun.fines.some(f => f.label === 'Kangaroo Start'), 'no kangaroo fine for merging');
 assert(sum.speeding.length === 1 && sum.speeding[0].road === 'Main Street' && sum.speeding[0].limit === 50, 'one Lead Foot Levy on Main Street');
 assert(sum.handling.some(h => h.how.includes('tilted')), 'phone grab detected');
 assert(sum.handling.some(h => h.how.includes('touched')), 'touch at 130 s counted');

@@ -11,6 +11,9 @@ from functools import wraps
 from zoneinfo import ZoneInfo
 
 import secrets
+import urllib.error
+import urllib.parse
+import urllib.request
 
 import segno
 from flask import (Flask, Response, abort, jsonify, redirect, render_template,
@@ -260,6 +263,30 @@ def register_lab_routes(app):
         resp.headers["X-Robots-Tag"] = "noindex"
         resp.headers["Referrer-Policy"] = "no-referrer"
         return resp
+
+    @app.post("/lab/overpass")
+    def lab_overpass():
+        """Speed-limit lookup for the Sensor Lab, passed through to OpenStreetMap's Overpass API.
+        The phone can always reach this server, but not always Overpass directly. Nothing is stored or logged."""
+        q = ((request.get_json(silent=True) or {}).get("query") or "").strip()
+        if not OVERPASS_QUERY.fullmatch(q):
+            return jsonify(error="bad_query"), 400
+        body = urllib.parse.urlencode({"data": q}).encode()
+        req = urllib.request.Request(OVERPASS_URL, data=body, headers={"User-Agent": "hows-the-driving-sensor-lab/1"})
+        try:
+            with urllib.request.urlopen(req, timeout=45) as r:
+                data = r.read(8 * 1024 * 1024)
+        except (urllib.error.URLError, TimeoutError) as e:
+            return jsonify(error="overpass_unavailable", detail=str(e)[:200]), 502
+        resp = Response(data, mimetype="application/json")
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+
+
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+# Only the one query shape the Sensor Lab sends: roads near a line of up to ~300 points.
+OVERPASS_QUERY = re.compile(r'\[out:json\]\[timeout:25\];way\(around:\d{1,3},-?\d{1,3}\.\d{1,6},-?\d{1,3}\.\d{1,6}'
+                            r'(?:,-?\d{1,3}\.\d{1,6},-?\d{1,3}\.\d{1,6}){0,600}\)\["highway"\];out tags geom;')
 
 
 def login_required(view):

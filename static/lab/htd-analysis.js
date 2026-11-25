@@ -23,6 +23,7 @@
     motionWildMps2: 12,       // above this the phone itself moved (dropped, grabbed), not the car
     tiltDeg: 35,              // phone orientation change in 2 s while moving = picked up / moved
     mergeMs: 3000,            // events closer than this are one event
+    pullAwayKmh: 25,          // hard acceleration only counts as a Kangaroo Start from below this speed (joining a motorway briskly is fine)
     overKmh: 4,               // km/h over the limit before it counts (GPS slack)
     overMinMs: 4000,          // ...for at least this long
     matchMeters: 25,          // GPS point to road distance for a speed-limit match
@@ -118,7 +119,7 @@
     for (const r of runs(pts.length, i => k.lon[i] != null && k.lon[i] <= o.brakeMps2 && moving(i), i => -k.lon[i]))
       ev.push({ t: pts[r.peak][0], type: 'brake', mps2: k.lon[r.peak], kmh: k.v[r.start] * 3.6, src: 'gps' });
     for (const r of runs(pts.length, i => k.lon[i] != null && k.lon[i] >= o.accelMps2, i => k.lon[i]))
-      ev.push({ t: pts[r.peak][0], type: 'accel', mps2: k.lon[r.peak], kmh: k.v[r.peak] * 3.6, src: 'gps' });
+      ev.push({ t: pts[r.peak][0], type: k.v[r.start] * 3.6 < o.pullAwayKmh ? 'accel' : 'merge', mps2: k.lon[r.peak], kmh: k.v[r.peak] * 3.6, src: 'gps' });
     for (const r of runs(pts.length, i => k.lat[i] != null && Math.abs(k.lat[i]) >= o.cornerMps2, i => Math.abs(k.lat[i])))
       ev.push({ t: pts[r.peak][0], type: 'corner', mps2: Math.abs(k.lat[r.peak]), kmh: k.v[r.peak] * 3.6, src: 'gps' });
     return ev;
@@ -157,7 +158,7 @@
       const lon = atTime(pts, k.lon, t), lat = atTime(pts, k.lat, t);
       let type = 'bump';
       if (lon != null && lon <= -1) type = 'brake';
-      else if (lon != null && lon >= 1) type = 'accel';
+      else if (lon != null && lon >= 1) type = v * 3.6 < o.pullAwayKmh + 15 ? 'accel' : 'merge';
       else if (lat != null && Math.abs(lat) >= 1.5) type = 'corner';
       ev.push({ t, type, mps2: ms.h[r.peak], kmh: v * 3.6, src: 'motion' });
     }
@@ -281,7 +282,7 @@
   /* ------------------------------------------------------------------ fun report */
   const LABELS = {
     brake: 'Squirrel Stop', accel: 'Kangaroo Start', corner: 'Mondello Moment', speeding: 'Lead Foot Levy',
-    handling: 'Fiddle Fine', bump: 'Bump (not scored)',
+    handling: 'Fiddle Fine', bump: 'Bump (not scored)', merge: 'Brisk merge (not scored)',
   };
   function grade(score) {
     return score >= 95 ? 'A+' : score >= 90 ? 'A' : score >= 84 ? 'B+' : score >= 78 ? 'B' : score >= 70 ? 'C+' : score >= 60 ? 'C' : score >= 50 ? 'D' : 'E';
@@ -304,7 +305,8 @@
     if (!speeding.length && sum.limitKnownPct >= 60 && sum.movingMin >= 3) badges.push('Limit Legend');
     if (sum.maxKmh < 55 && sum.movingMin >= 5) badges.push('Driving Miss Daisy');
     let comment;
-    if (score >= 95) comment = 'Smooth as a Sunday mass. Nothing to report, which is the best report of all.';
+    if (!fines.length) comment = 'Smooth as a Sunday mass. Nothing to report, which is the best report of all.';
+    else if (score >= 95) comment = `Near perfect. One ${fines[0].label} away from a clean sheet.`;
     else if (speeding.length && brakes) comment = 'Heavy on the right foot, then heavy on the brake. Pick one, ideally neither.';
     else if (speeding.length) comment = `Must stop treating ${speeding[0].limit}s as a suggestion.`;
     else if (brakes >= 2) comment = 'Shows great promise. Brakes like a squirrel crossed the road.';

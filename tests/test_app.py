@@ -425,3 +425,22 @@ def test_sensor_lab_can_be_switched_on_for_the_main_site():
     c.post("/api/family", json={"family_name": "Lab Cabs", "parent_name": "Dad"})
     f = c.get("/api/state").get_json()["features"]
     assert f["sensor_lab"] is True and f["labs"] is False and f["games"] is False
+
+
+def test_sensor_lab_overpass_relay(monkeypatch):
+    import io
+    import app as app_module
+    labs, _ = build_app(LABS=True)
+    c = labs.test_client()
+    sent = {}
+
+    def fake_urlopen(req, timeout):
+        sent["body"] = req.data
+        return io.BytesIO(b'{"elements": []}')
+    monkeypatch.setattr(app_module.urllib.request, "urlopen", fake_urlopen)
+    q = '[out:json][timeout:25];way(around:30,52.66000,-8.63000,52.66100,-8.63100)["highway"];out tags geom;'
+    r = c.post("/lab/overpass", json={"query": q})
+    assert r.status_code == 200 and r.get_json() == {"elements": []} and b"around%3A30" in sent["body"]
+    assert c.post("/lab/overpass", json={"query": "[out:json];node(1);out;"}).status_code == 400
+    main, _ = build_app()
+    assert main.test_client().post("/lab/overpass", json={"query": q}).status_code == 404

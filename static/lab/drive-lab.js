@@ -170,7 +170,7 @@
     S.t0 = Date.now();
     const id = new Date(S.t0).toISOString();
     S.trace = { v: 1, id, started: id, ended: null, endedMs: null, ua: navigator.userAgent, gps: [], motion: [], touches: [], vis: [], errors: [], motionSource: 'none', overpass: null };
-    S.recording = true; S.g = null; S.bucket = null;
+    S.recording = true; S.g = null; S.bucket = null; S.stalled = false;
     startSensors();
     const awake = await lockScreenOn();
     $('pocket').classList.add('on');
@@ -179,6 +179,10 @@
       $('clock').textContent = `RECORDING · ${mmss(now())}`;
       const gpsOk = S.lastFix && Date.now() - S.lastFix.at < 5000, motOk = Date.now() - S.lastMotionWall < 2000;
       $('pstatus').textContent = `GPS ${gpsOk ? 'OK' : 'waiting'} · Motion ${motOk ? 'OK' : 'missing'}`;
+      if (!motOk && S.lastMotionWall && Date.now() - S.lastMotionWall > 3000) {  // motion stalled: log it once and re-attach
+        if (!S.stalled) { S.stalled = true; S.trace.errors.push([now(), 'motion', 'stalled']); }
+        window.removeEventListener('devicemotion', onMotion); window.addEventListener('devicemotion', onMotion);
+      } else if (motOk && S.stalled) { S.stalled = false; S.trace.errors.push([now(), 'motion', 'resumed']); }
     }, 1000);
     saveTimer = setInterval(() => { flushBucket(); S.trace.motionSource = S.src; DB.put(S.trace).catch(() => {}); }, 20000);
   }
@@ -222,8 +226,14 @@
     const pts = trace.gps.filter(p => p[5] != null && p[5] <= 30);
     if (pts.length < 10) throw new Error('not enough GPS to check limits');
     const q = A.overpassQuery(A.routeSample(pts));
-    const res = await fetch(OVERPASS, { method: 'POST', body: new URLSearchParams({ data: q }) });
-    if (!res.ok) throw new Error(`Overpass said ${res.status}`);
+    let res;
+    try {  // through our own server first (the phone can always reach it), then straight to Overpass
+      res = await fetch('/lab/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
+      if (!res.ok) throw new Error(`relay said ${res.status}`);
+    } catch (e) {
+      res = await fetch(OVERPASS, { method: 'POST', body: new URLSearchParams({ data: q }) });
+      if (!res.ok) throw new Error(`Overpass said ${res.status}`);
+    }
     const j = await res.json();
     // keep only what matching needs, so saved drives stay small
     return { elements: (j.elements || []).filter(e => e.type === 'way').map(w => ({ type: 'way', tags: { highway: w.tags && w.tags.highway, maxspeed: w.tags && w.tags.maxspeed, name: w.tags && w.tags.name, ref: w.tags && w.tags.ref, oneway: w.tags && w.tags.oneway }, geometry: w.geometry })) };
@@ -318,7 +328,7 @@
     }
     x.strokeStyle = '#141414'; x.lineWidth = 2; x.beginPath();
     t.forEach((tt, i) => (i ? x.lineTo(px(tt), py(kmh[i])) : x.moveTo(px(tt), py(kmh[i])))); x.stroke();
-    const col = { brake: '#ff7a1a', accel: '#ff7a1a', corner: '#2f6fde', handling: '#8a3ffc', bump: '#aaa' };
+    const col = { brake: '#ff7a1a', accel: '#ff7a1a', corner: '#2f6fde', handling: '#8a3ffc', bump: '#aaa', merge: '#aaa' };
     for (const e of [...sum.events, ...sum.handling]) {
       x.fillStyle = col[e.type] || '#000'; x.beginPath(); x.arc(px(e.t), py(e.kmh != null ? e.kmh : 5), 5, 0, Math.PI * 2); x.fill();
     }
