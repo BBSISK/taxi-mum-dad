@@ -229,10 +229,14 @@
     let res;
     try {  // through our own server first (the phone can always reach it), then straight to Overpass
       res = await fetch('/lab/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
-      if (!res.ok) throw new Error(`relay said ${res.status}`);
-    } catch (e) {
-      res = await fetch(OVERPASS, { method: 'POST', body: new URLSearchParams({ data: q }) });
-      if (!res.ok) throw new Error(`Overpass said ${res.status}`);
+      if (!res.ok) {
+        let detail = ''; try { detail = (await res.json()).detail || ''; } catch { /* not JSON */ }
+        throw new Error(`relay said ${res.status}${detail ? ' (' + detail + ')' : ''}`);
+      }
+    } catch (relayErr) {
+      try { res = await fetch(OVERPASS, { method: 'POST', body: new URLSearchParams({ data: q }) }); }
+      catch { throw relayErr; }  // direct failed too: the relay's reason is the useful one
+      if (!res.ok) throw new Error(`${relayErr.message}; Overpass said ${res.status}`);
     }
     const j = await res.json();
     // keep only what matching needs, so saved drives stay small

@@ -442,5 +442,21 @@ def test_sensor_lab_overpass_relay(monkeypatch):
     r = c.post("/lab/overpass", json={"query": q})
     assert r.status_code == 200 and r.get_json() == {"elements": []} and b"around%3A30" in sent["body"]
     assert c.post("/lab/overpass", json={"query": "[out:json];node(1);out;"}).status_code == 400
+    calls = []
+
+    def busy_then_ok(req, timeout):  # first server busy, second answers
+        calls.append(req.full_url)
+        if len(calls) == 1:
+            raise app_module.urllib.error.HTTPError(req.full_url, 429, "Too Many Requests", {}, None)
+        return io.BytesIO(b'{"elements": [1]}')
+    monkeypatch.setattr(app_module.urllib.request, "urlopen", busy_then_ok)
+    r = c.post("/lab/overpass", json={"query": q})
+    assert r.get_json() == {"elements": [1]} and len(calls) == 2
+
+    def all_down(req, timeout):
+        raise app_module.urllib.error.URLError("down")
+    monkeypatch.setattr(app_module.urllib.request, "urlopen", all_down)
+    r = c.post("/lab/overpass", json={"query": q})
+    assert r.status_code == 502 and "overpass-api.de" in r.get_json()["detail"]
     main, _ = build_app()
     assert main.test_client().post("/lab/overpass", json={"query": q}).status_code == 404

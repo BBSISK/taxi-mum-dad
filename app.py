@@ -272,18 +272,34 @@ def register_lab_routes(app):
         if not OVERPASS_QUERY.fullmatch(q):
             return jsonify(error="bad_query"), 400
         body = urllib.parse.urlencode({"data": q}).encode()
-        req = urllib.request.Request(OVERPASS_URL, data=body, headers={"User-Agent": "hows-the-driving-sensor-lab/1"})
-        try:
-            with urllib.request.urlopen(req, timeout=45) as r:
-                data = r.read(8 * 1024 * 1024)
-        except (urllib.error.URLError, TimeoutError) as e:
-            return jsonify(error="overpass_unavailable", detail=str(e)[:200]), 502
+        tried = []
+        for url in OVERPASS_URLS:  # the public servers are often busy: try the next one
+            req = urllib.request.Request(url, data=body, headers={
+                "User-Agent": "TaxiOfMumAndDad-SensorLab/1 (+https://taxi-mum-dad-eu.onrender.com)",
+                "Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded"})
+            try:
+                with urllib.request.urlopen(req, timeout=40) as r:
+                    data = r.read(8 * 1024 * 1024)
+                if data.lstrip()[:1] != b"{":
+                    raise ValueError("not JSON")
+                break
+            except (urllib.error.URLError, TimeoutError, ValueError, OSError) as e:
+                host = urllib.parse.urlparse(url).netloc
+                tried.append(f"{host}: {getattr(e, 'code', '') or str(e)[:80]}")
+                app.logger.warning("overpass relay: %s failed: %s", host, tried[-1])
+        else:
+            return jsonify(error="overpass_unavailable", detail="; ".join(tried)[:400]), 502
         resp = Response(data, mimetype="application/json")
         resp.headers["Cache-Control"] = "no-store"
         return resp
 
 
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+OVERPASS_URLS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+]
 # Only the one query shape the Sensor Lab sends: roads near a line of up to ~300 points.
 OVERPASS_QUERY = re.compile(r'\[out:json\]\[timeout:25\];way\(around:\d{1,3},-?\d{1,3}\.\d{1,6},-?\d{1,3}\.\d{1,6}'
                             r'(?:,-?\d{1,3}\.\d{1,6},-?\d{1,3}\.\d{1,6}){0,600}\)\["highway"\];out tags geom;')
